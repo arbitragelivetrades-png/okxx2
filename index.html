@@ -45,28 +45,32 @@
         <header class="bg-black border-b border-darkBorder sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16 items-center">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 rounded-lg bg-okxGreen flex items-center justify-center text-black font-extrabold text-xl tracking-tighter">
+                    <div class="flex items-center space-x-2 sm:space-x-3">
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-okxGreen flex items-center justify-center text-black font-extrabold text-lg sm:text-xl tracking-tighter">
                             O
                         </div>
                         <div>
-                            <span class="display-font text-lg font-bold tracking-tight text-white">OKX <span class="text-okxGreen">PRO</span></span>
-                            <span class="ml-2 px-2 py-0.5 text-[10px] font-semibold bg-darkBorder text-gray-400 rounded-full border border-darkBorder">Cloud Admin</span>
+                            <span class="display-font text-sm sm:text-lg font-bold tracking-tight text-white">OKX <span class="text-okxGreen">PRO</span></span>
+                            <span class="hidden xs:inline-block ml-1.5 sm:ml-2 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold bg-darkBorder text-gray-400 rounded-full border border-darkBorder">Admin</span>
                         </div>
                     </div>
                     
-                    <div class="flex items-center space-x-4">
-                        <div id="headerDbStatusWrapper" class="hidden flex items-center space-x-4">
-                            <div id="connectionStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs">
-                                <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-                                <span>DB Disconnected</span>
+                    <div class="flex items-center space-x-2 sm:space-x-4">
+                        <div id="headerDbStatusWrapper" class="hidden flex items-center space-x-2 sm:space-x-4">
+                            <div id="connectionStatusBadge" class="flex items-center space-x-1.5 sm:space-x-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-[10px] sm:text-xs">
+                                <span class="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-red-500 animate-pulse"></span>
+                                <span class="hidden sm:inline">DB Disconnected</span>
+                                <span class="sm:hidden">Offline</span>
                             </div>
-                            <button id="disconnectDbBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
-                                <i class="fa-solid fa-link-slash mr-1"></i> Disconnect DB
+                            <button id="disconnectDbBtn" class="hidden text-[10px] sm:text-xs text-red-400 hover:text-white border border-red-900/40 hover:bg-red-950/40 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center space-x-1">
+                                <i class="fa-solid fa-link-slash"></i>
+                                <span class="hidden sm:inline">Disconnect DB</span>
+                                <span class="sm:hidden">Unlink</span>
                             </button>
                         </div>
-                        <button id="adminLogoutBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
-                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
+                        <button id="adminLogoutBtn" class="hidden text-[10px] sm:text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center space-x-1">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            <span class="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
@@ -201,8 +205,8 @@
                         </div>
                     </div>
 
-                    <!-- Database Table -->
-                    <div class="overflow-x-auto">
+                    <!-- Database Table (Visible on medium/large screens) -->
+                    <div class="hidden md:block overflow-x-auto">
                         <table class="min-w-full divide-y divide-darkBorder text-sm">
                             <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider text-left font-semibold">
                                 <tr>
@@ -224,6 +228,15 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Cards Layout (Visible on mobile/tablet screens) -->
+                    <div id="usersCardsContainer" class="md:hidden flex flex-col divide-y divide-darkBorder/60 bg-darkCard/20">
+                        <!-- Loaded dynamically -->
+                        <div class="px-6 py-12 text-center text-gray-400 text-xs">
+                            <i class="fa-solid fa-circle-notch animate-spin text-lg text-okxGreen mb-2 block mx-auto"></i>
+                            Syncing cloud database records...
+                        </div>
                     </div>
                 </div>
 
@@ -497,7 +510,52 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Scripts -->
+    <!-- Confirm Disconnect Modal Dialog -->
+    <div id="confirmDisconnectModal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/85 backdrop-blur-sm transition-opacity"></div>
+
+        <!-- Panel container -->
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-darkCard border border-red-900/60 text-left shadow-2xl transition-all w-full max-w-sm">
+                <!-- Header -->
+                <div class="bg-red-950/20 px-6 py-4 border-b border-darkBorder flex justify-between items-center">
+                    <div class="flex items-center space-x-2 text-red-400">
+                        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        <h3 class="display-font text-base font-bold text-white">Disconnect Database?</h3>
+                    </div>
+                    <button id="closeDisconnectModalBtn" type="button" class="text-gray-400 hover:text-white text-lg transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="px-6 py-5 space-y-4">
+                    <p class="text-xs text-gray-300 leading-relaxed">
+                        Are you sure you want to unlink from the Firebase real-time database? This will:
+                    </p>
+                    <ul class="text-[11px] text-gray-400 space-y-2 list-disc list-inside">
+                        <li>Deactivate live sync with user apps</li>
+                        <li>Clear connection state from session memory</li>
+                        <li>Require database details to reconnect</li>
+                    </ul>
+                    <div class="p-3 bg-red-950/20 rounded-xl border border-red-900/30 text-[10px] text-red-400 font-medium">
+                        This action halts the real-time balance administration panel.
+                    </div>
+                </div>
+
+                <!-- Actions Footer -->
+                <div class="bg-black/20 border-t border-darkBorder px-6 py-4 flex justify-end space-x-2.5">
+                    <button id="cancelDisconnectBtn" type="button" class="text-xs text-gray-400 hover:text-white font-semibold px-4 py-2.5 rounded-lg border border-darkBorder transition-colors">
+                        Cancel
+                    </button>
+                    <button id="confirmDisconnectBtn" type="button" class="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors">
+                        Yes, Disconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -521,6 +579,12 @@
         const tableBody = document.getElementById('usersTableBody');
         const searchInput = document.getElementById('userSearchInput');
         const modal = document.getElementById('editBalancesModal');
+
+        // Disconnect confirmation elements
+        const disconnectModal = document.getElementById('confirmDisconnectModal');
+        const closeDisconnectModalBtn = document.getElementById('closeDisconnectModalBtn');
+        const cancelDisconnectBtn = document.getElementById('cancelDisconnectBtn');
+        const confirmDisconnectBtn = document.getElementById('confirmDisconnectBtn');
 
         // Authentication logic
         function checkAuth() {
@@ -602,19 +666,37 @@
             }
         });
 
-        // Disconnect DB
+        // Gated Disconnect DB with Modal Dialog Confirmation
         disconnectBtn.addEventListener('click', () => {
+            disconnectModal.classList.remove('hidden');
+        });
+
+        // Close Disconnect modal on cancel/close
+        const closeDisconnectModal = () => {
+            disconnectModal.classList.add('hidden');
+        };
+        closeDisconnectModalBtn.addEventListener('click', closeDisconnectModal);
+        cancelDisconnectBtn.addEventListener('click', closeDisconnectModal);
+
+        // Perform actual disconnection
+        confirmDisconnectBtn.addEventListener('click', () => {
             localStorage.removeItem('okx_db_config');
             if (unsubscribeUsers) unsubscribeUsers();
             db = null;
             firebaseApp = null;
             
+            // Close the modal
+            closeDisconnectModal();
+            
             // Update UI
             checkAuth();
             disconnectBtn.classList.add('hidden');
             
-            badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span><span>DB Disconnected</span>`;
-            badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs";
+            badge.innerHTML = `<span class="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-red-500 animate-pulse"></span><span class="hidden sm:inline">DB Disconnected</span><span class="sm:hidden">Offline</span>`;
+            badge.className = "flex items-center space-x-1.5 sm:space-x-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-[10px] sm:text-xs";
+            
+            // Refresh tables and cards
+            renderTable();
         });
 
         // Search input logic
@@ -702,8 +784,8 @@
                 db = getFirestore(firebaseApp);
                 
                 // Set badge UI
-                badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-okxGreen animate-pulse"></span><span>Connected to ${projectId}</span>`;
-                badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-950/40 text-okxGreen border border-emerald-800/60 text-xs";
+                badge.innerHTML = `<span class="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-okxGreen animate-pulse"></span><span class="hidden sm:inline">Connected to ${projectId}</span><span class="sm:hidden">Live</span>`;
+                badge.className = "flex items-center space-x-1.5 sm:space-x-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-emerald-950/40 text-okxGreen border border-emerald-800/60 text-[10px] sm:text-xs";
                 
                 disconnectBtn.classList.remove('hidden');
                 
@@ -758,7 +840,7 @@
             document.getElementById('metricGlobalBalance').innerText = `$${globalTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
-        // Render dynamic table rows
+        // Render dynamic table rows & responsive mobile cards
         function renderTable() {
             const query = searchInput.value.toLowerCase().trim();
             const filtered = usersData.filter(user => {
@@ -766,16 +848,18 @@
                        (user.username && user.username.toLowerCase().includes(query));
             });
             
+            const cardsContainer = document.getElementById('usersCardsContainer');
+            
             if (filtered.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500 text-xs">No user database records found. When users register in the Android App, they will appear here instantly!</td></tr>`;
+                cardsContainer.innerHTML = `<div class="px-6 py-12 text-center text-gray-400 text-xs bg-darkCard/10">No user database records found. When users register in the Android App, they will appear here instantly!</div>`;
                 return;
             }
 
             tableBody.innerHTML = '';
+            cardsContainer.innerHTML = '';
+            
             filtered.forEach(user => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-white/[0.02] transition-colors";
-                
                 // Estimate user balance value
                 let userUsdValue = 0.0;
                 let balanceOverviewStr = [];
@@ -799,6 +883,9 @@
                     ? new Date(user.lastUpdated).toLocaleString() 
                     : "Never";
 
+                // --- 1. Populate Desktop Table ---
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/[0.02] transition-colors";
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center space-x-3">
@@ -832,6 +919,55 @@
                     </td>
                 `;
                 tableBody.appendChild(tr);
+
+                // --- 2. Populate Mobile Card ---
+                const card = document.createElement('div');
+                card.className = "px-5 py-5 space-y-4 hover:bg-white/[0.01] transition-colors";
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-okxGreen to-emerald-800 text-black font-bold flex items-center justify-center text-xs uppercase">
+                                ${(user.username || "U").substring(0, 2)}
+                            </div>
+                            <div>
+                                <span class="block text-white font-semibold text-xs">${user.username || "Unknown User"}</span>
+                                <span class="block text-gray-500 text-[10px] truncate max-w-[150px]" title="${user.email}">${user.email || "No email"}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold">Est. Value</span>
+                            <span class="text-xs font-bold ${userUsdValue > 0 ? "text-okxGreen" : "text-white"} font-mono">$${userUsdValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Credentials</span>
+                            <div class="text-[11px] font-mono text-gray-300 select-all">
+                                <i class="fa-solid fa-key mr-1 text-gray-600"></i> ${user.password || "••••••••"}
+                            </div>
+                        </div>
+                        <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Last Synced</span>
+                            <div class="text-[10px] text-gray-400 font-mono truncate">
+                                ${user.lastUpdated ? new Date(user.lastUpdated).toLocaleTimeString() : "Never"}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold">Crypto Balances</span>
+                        <div class="flex flex-wrap gap-1">${balanceStringHtml}</div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button onclick="openEditBalances('${user.email}')" class="w-full bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs py-2.5 rounded-xl border border-darkBorder hover:border-okxGreen transition-all font-bold flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-coins"></i>
+                            <span>Edit Balances</span>
+                        </button>
+                    </div>
+                `;
+                cardsContainer.appendChild(card);
             });
         }
 
