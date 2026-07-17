@@ -219,28 +219,35 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun triggerCloudBackup() {
         val user = _currentUser.value ?: return
-        val currentBalances = coinBalances.value
-        FirebaseSyncManager.syncUserToCloud(getApplication(), user, currentBalances)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val allBalances = database.coinBalanceDao().getAllBalances()
+                val currentBalances = allBalances.associate { it.symbol.uppercase() to it.amount }
+                FirebaseSyncManager.syncUserToCloud(getApplication(), user, currentBalances)
+            } catch (e: Exception) {
+                android.util.Log.e("WalletViewModel", "Failed to trigger cloud backup", e)
+            }
+        }
     }
 
     fun addBalance(symbol: String, amount: Double) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.addBalance(symbol.uppercase(), amount)
-            // Backup to cloud
-            launch(Dispatchers.Main) {
-                triggerCloudBackup()
-            }
+            // Backup to cloud with the updated balance directly
+            triggerCloudBackup()
         }
     }
 
     fun withdrawBalance(symbol: String, amount: Double, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             val success = repository.withdrawBalance(symbol.uppercase(), amount)
-            launch(Dispatchers.Main) {
-                if (success) {
-                    triggerCloudBackup()
+            if (success) {
+                triggerCloudBackup()
+                launch(Dispatchers.Main) {
                     onSuccess()
-                } else {
+                }
+            } else {
+                launch(Dispatchers.Main) {
                     onError("Insufficient balance")
                 }
             }
