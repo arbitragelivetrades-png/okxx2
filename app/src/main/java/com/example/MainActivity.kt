@@ -1645,8 +1645,16 @@ fun MainAppContainer() {
     
     var showAddBalanceDialog by remember { mutableStateOf(false) }
     var showPasskeySetupDialog by remember { mutableStateOf(false) }
+    var updateConfig by remember { mutableStateOf<FirebaseSyncManager.UpdateConfig?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(context) {
+        FirebaseSyncManager.checkAppUpdate(context) { config ->
+            updateConfig = config
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!MainActivity.isSplashAlreadyShown) {
@@ -1656,8 +1664,12 @@ fun MainAppContainer() {
         }
     }
 
-    if (showSplashScreen) {
-        SplashLoadingScreen()
+    val currentRemoteConfig = updateConfig ?: FirebaseSyncManager.UpdateConfig()
+
+    if (currentRemoteConfig.maintenanceMode) {
+        MaintenanceScreen(message = currentRemoteConfig.maintenanceMessage)
+    } else if (showSplashScreen) {
+        SplashLoadingScreen(config = currentRemoteConfig)
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
@@ -1668,7 +1680,8 @@ fun MainAppContainer() {
                     BottomNavigationBar(
                         currentTab = currentTab,
                         onTabSelected = { currentTab = it },
-                        onExploreDoubleTap = { showPasskeySetupDialog = true }
+                        onExploreDoubleTap = { showPasskeySetupDialog = true },
+                        config = currentRemoteConfig
                     )
                 }
             ) { innerPadding ->
@@ -1706,7 +1719,8 @@ fun MainAppContainer() {
                                         } else {
                                             showAddBalanceDialog = true
                                         }
-                                    }
+                                    },
+                                    showMenuButton = true
                                 )
                             }
                         }
@@ -1893,6 +1907,89 @@ fun MainAppContainer() {
                         pendingActionAfterAuth?.invoke()
                         pendingActionAfterAuth = null
                     }
+                )
+            }
+
+            // Real-time Mobile Update Dialog Prompt
+            val activeConfig = updateConfig
+            if (activeConfig != null && activeConfig.latestVersionCode > FirebaseSyncManager.CURRENT_VERSION_CODE) {
+                val config = activeConfig
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = {
+                        if (!config.isForceUpdate) {
+                            updateConfig = null
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = "Update Icon",
+                            tint = OkxGreen,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = if (config.isForceUpdate) "Mandatory Update Required" else "New Update Available (v${config.latestVersionName})",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            val notes = config.releaseNotes.ifBlank {
+                                if (config.isForceUpdate) {
+                                    "A critical security and performance update is required to continue using the application."
+                                } else {
+                                    "We have added new features and performance improvements to make your trading experience better."
+                                }
+                            }
+                            Text(
+                                text = notes,
+                                color = Color.Gray,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (config.downloadUrl.isNotBlank()) {
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(config.downloadUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Update Now", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = if (config.isForceUpdate) null else {
+                        {
+                            TextButton(
+                                onClick = { updateConfig = null },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Later", color = Color.Gray)
+                            }
+                        }
+                    },
+                    containerColor = Color(0xFF1E1E1E),
+                    titleContentColor = Color.White,
+                    textContentColor = Color.Gray
                 )
             }
         }
@@ -2207,7 +2304,7 @@ fun AuthenticationPromptDialog(
 // ------------------------------------------------------------------------
 
 @Composable
-fun SplashLoadingScreen() {
+fun SplashLoadingScreen(config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -2215,10 +2312,88 @@ fun SplashLoadingScreen() {
             .testTag("splash_loading_screen"),
         contentAlignment = Alignment.Center
     ) {
-        OkxLogoIcon(
+        DynamicAppLogo(
             color = Color.White,
-            modifier = Modifier.size(64.dp)
+            modifier = Modifier.size(64.dp),
+            config = config
         )
+    }
+}
+
+@Composable
+fun DynamicAppLogo(
+    color: Color,
+    modifier: Modifier = Modifier,
+    config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
+) {
+    val type = config.logoType.uppercase().trim()
+    when {
+        type == "XLAYER" -> {
+            XLayerLogo(modifier = modifier)
+        }
+        type == "CUSTOM" -> {
+            val text = config.customLogoText.ifBlank { "OKX" }
+            androidx.compose.material3.Text(
+                text = text,
+                color = color,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                modifier = modifier
+            )
+        }
+        else -> {
+            OkxLogoIcon(color = color, modifier = modifier)
+        }
+    }
+}
+
+@Composable
+fun MaintenanceScreen(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .padding(24.dp)
+            .testTag("maintenance_screen"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = "Maintenance Icon",
+                tint = OkxGreen,
+                modifier = Modifier.size(72.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            androidx.compose.material3.Text(
+                text = "System Maintenance",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            androidx.compose.material3.Text(
+                text = message.ifBlank { "We are currently conducting essential system maintenance to improve our platform services. Please try again later." },
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            CircularProgressIndicator(
+                color = OkxGreen,
+                modifier = Modifier.size(36.dp),
+                strokeWidth = 3.dp
+            )
+        }
     }
 }
 
@@ -3181,7 +3356,8 @@ fun EstTotalValueHeader(
 fun BottomNavigationBar(
     currentTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit,
-    onExploreDoubleTap: () -> Unit
+    onExploreDoubleTap: () -> Unit,
+    config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
 ) {
     var lastExploreClickTime by remember { mutableStateOf(0L) }
 
@@ -3203,10 +3379,10 @@ fun BottomNavigationBar(
             ) {
                 // Tab 1: OKX
                 BottomNavItem(
-                    label = "OKX",
+                    label = if (config.logoType.uppercase().trim() == "CUSTOM" && config.customLogoText.isNotBlank()) config.customLogoText else "OKX",
                     isSelected = currentTab == BottomTab.OKX,
                     onClick = { onTabSelected(BottomTab.OKX) },
-                    icon = { color -> OkxLogoIcon(color = color, modifier = Modifier.size(20.dp)) },
+                    icon = { color -> DynamicAppLogo(color = color, modifier = Modifier.size(20.dp), config = config) },
                     modifier = Modifier.testTag("bottom_nav_okx")
                 )
                 
@@ -3719,7 +3895,8 @@ fun OkxScreenContent(
     isBalanceVisible: Boolean,
     onToggleBalance: () -> Unit,
     onDepositClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    showMenuButton: Boolean = false
 ) {
     val scrollState = rememberScrollState()
     var selectedTopTab by remember { mutableStateOf("Exchange") }
@@ -3740,12 +3917,16 @@ fun OkxScreenContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left App menu grid launcher (9 dots)
-            IconButton(onClick = onMenuClick, modifier = Modifier.testTag("okx_menu_button")) {
-                GridMenuIcon(
-                    color = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+            // Left App menu grid launcher (9 dots) - Visible only to admin
+            if (showMenuButton) {
+                IconButton(onClick = onMenuClick, modifier = Modifier.testTag("okx_menu_button")) {
+                    GridMenuIcon(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
             }
             
             // Center Segment Control: Exchange & Wallet
@@ -4155,6 +4336,9 @@ fun AddWithdrawBalanceDialog(
     var activeTab by remember { mutableStateOf("Adjust") } // "Adjust" or "Sync"
     var isAddingMode by remember { mutableStateOf(true) } // true = Add, false = Withdraw
     
+    val isAdmin = currentUser?.isAdmin() == true
+    val currentActiveTab = if (isAdmin) activeTab else "Adjust"
+    
     val supportedCoins = listOf("BTC", "ETH", "BNB", "SOL", "USDT", "TRX", "1INCH", "XAUT", "USDG")
     var selectedCoin by remember { mutableStateOf("SOL") }
     var amountText by remember { mutableStateOf("") }
@@ -4213,7 +4397,7 @@ fun AddWithdrawBalanceDialog(
                     ) {
                         Column {
                             Text(
-                                text = "Admin Mode (${user.username})",
+                                text = if (user.isAdmin()) "Admin Mode (${user.username})" else "Profile (${user.username})",
                                 color = OkxGreen,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -4240,49 +4424,52 @@ fun AddWithdrawBalanceDialog(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Tab Selector for Adjust Balance vs Cloud Sync
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF1C1C1E))
-                        .padding(2.dp)
-                ) {
-                    Box(
+                // Tab Selector for Adjust Balance vs Cloud Sync - Visible only to admin
+                if (isAdmin) {
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (activeTab == "Adjust") Color(0xFF2C2C2E) else Color.Transparent)
-                            .clickable { activeTab = "Adjust" }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF1C1C1E))
+                            .padding(2.dp)
                     ) {
-                        Text(
-                            text = "Adjust Balance",
-                            color = if (activeTab == "Adjust") OkxGreen else Color.Gray,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (currentActiveTab == "Adjust") Color(0xFF2C2C2E) else Color.Transparent)
+                                .clickable { activeTab = "Adjust" }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Adjust Balance",
+                                color = if (currentActiveTab == "Adjust") OkxGreen else Color.Gray,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (currentActiveTab == "Sync") Color(0xFF2C2C2E) else Color.Transparent)
+                                .clickable { activeTab = "Sync" }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Cloud DB Sync",
+                                color = if (currentActiveTab == "Sync") OkxGreen else Color.Gray,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (activeTab == "Sync") Color(0xFF2C2C2E) else Color.Transparent)
-                            .clickable { activeTab = "Sync" }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Cloud DB Sync",
-                            color = if (activeTab == "Sync") OkxGreen else Color.Gray,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                if (activeTab == "Adjust") {
+                if (currentActiveTab == "Adjust") {
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Add / Withdraw Toggle Buttons

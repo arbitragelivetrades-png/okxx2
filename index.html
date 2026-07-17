@@ -177,6 +177,110 @@
                     </div>
                 </div>
 
+                <!-- App Updates Settings & Release Management -->
+                <div class="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+                            <div>
+                                <h3 class="display-font text-base font-bold text-white flex items-center space-x-2">
+                                    <i class="fa-solid fa-cloud-arrow-up text-okxGreen text-lg"></i>
+                                    <span>Mobile App Release & Update Prompts</span>
+                                </h3>
+                                <p class="text-gray-400 text-xs mt-0.5">Control when users receive a prompt to update their installed app when they open it</p>
+                            </div>
+                            <button id="saveUpdateConfigBtn" type="button" class="bg-okxGreen text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-white transition-colors flex items-center space-x-1.5 self-start sm:self-auto">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Save & Push Update</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">Latest Version Code (e.g. 2, 3)</label>
+                                <input type="number" id="updateVersionCode" placeholder="2" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">Latest Version Name (e.g. 1.1, 2.0)</label>
+                                <input type="text" id="updateVersionName" placeholder="1.1" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">APK Download URL (e.g. GitHub Releases Link)</label>
+                                <input type="text" id="updateDownloadUrl" placeholder="https://github.com/.../releases/download/v1.1/app-release.apk" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-xs text-gray-400 mb-1.5 font-medium">Release Notes / Update Description shown to Users</label>
+                            <textarea id="updateReleaseNotes" rows="2" placeholder="We have added live cryptocurrency tracking and fixed balance syncing errors. Please update to continue trading!" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- App-Wide Remote Feature Controls (Remote Config) -->
+                <div class="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
+                    <div class="bg-darkCard border border-darkBorder rounded-2xl p-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+                            <div>
+                                <h3 class="display-font text-base font-bold text-white flex items-center space-x-2">
+                                    <i class="fa-solid fa-sliders text-okxGreen text-lg"></i>
+                                    <span>App-Wide Remote Feature Controls</span>
+                                </h3>
+                                <p class="text-gray-400 text-xs mt-0.5">Manage UI logos, active version deployments, and maintenance mode in real-time</p>
+                            </div>
+                            <button id="saveRemoteConfigBtn" type="button" class="bg-okxGreen text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-white transition-colors flex items-center space-x-1.5 self-start sm:self-auto">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span>Push Changes Instantly</span>
+                            </button>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Column 1: Update & Theme Settings -->
+                            <div class="space-y-4">
+                                <h4 class="text-white text-xs font-bold uppercase tracking-wider text-okxGreen/80">Updates & Brand</h4>
+                                <div class="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-darkBorder/60">
+                                    <div>
+                                        <label class="block text-xs text-white font-semibold">Force Update</label>
+                                        <span class="block text-[10px] text-gray-500">Enforce mandatory update (blocks app usage)</span>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="configIsForceUpdate" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-okxGreen peer-checked:after:bg-black"></div>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Active App Logo Style</label>
+                                    <select id="configLogoType" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                        <option value="OKX">OKX Standard Logo</option>
+                                        <option value="XLayer">XLayer Brand Logo</option>
+                                        <option value="Custom">Custom Text Heading</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Custom Logo Text (Only if 'Custom Text' selected)</label>
+                                    <input type="text" id="configCustomLogoText" placeholder="Alpha Exchange" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                </div>
+                            </div>
+
+                            <!-- Column 2: Maintenance Controls -->
+                            <div class="space-y-4">
+                                <h4 class="text-white text-xs font-bold uppercase tracking-wider text-okxGreen/80">Maintenance Controls</h4>
+                                <div class="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-darkBorder/60">
+                                    <div>
+                                        <label class="block text-xs text-white font-semibold">Maintenance Mode</label>
+                                        <span class="block text-[10px] text-gray-500">Block entire app access</span>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="configMaintenanceMode" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-okxGreen peer-checked:after:bg-black"></div>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Maintenance Display Message</label>
+                                    <textarea id="configMaintenanceMessage" rows="3" placeholder="The system is undergoing routine infrastructure maintenance. We expect trading to resume at 10:00 UTC." class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Users Directory Section -->
                 <div class="bg-darkCard border border-darkBorder rounded-2xl shadow-lg overflow-hidden">
                     <!-- Section Header -->
@@ -350,7 +454,7 @@
     <!-- Firebase SDK Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Local state
         let db = null;
@@ -359,8 +463,8 @@
         let usersData = [];
         let coinPrices = {
             "USDT": 1.0, "USDC": 1.0, "USDG": 1.0,
-            "BTC": 63400.0, "ETH": 3450.0, "BNB": 580.0,
-            "SOL": 145.5, "TRX": 0.12, "1INCH": 0.40, "XAUT": 2410.0
+            "BTC": 62500.0, "ETH": 1800.0, "BNB": 550.0,
+            "SOL": 73.50, "TRX": 0.32, "1INCH": 0.07, "XAUT": 3990.0
         };
 
         // DOM elements
@@ -375,6 +479,7 @@
         // Initial setup check
         document.addEventListener('DOMContentLoaded', () => {
             fetchLivePrices();
+            setInterval(fetchLivePrices, 15000); // Automatically refresh prices every 15 seconds
             const savedConfig = localStorage.getItem('okx_db_config');
             if (savedConfig) {
                 const config = JSON.parse(savedConfig);
@@ -459,20 +564,27 @@
             }
         });
 
-        // Fetch Cryptocompare price rates for accurate preview metrics
+        // Fetch Binance price rates for accurate preview metrics
         async function fetchLivePrices() {
             try {
-                const res = await fetch("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB,SOL,USDT,TRX,1INCH,XAUT,USDG,USDC&tsyms=USD");
+                const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22,%22SOLUSDT%22,%22TRXUSDT%22,%221INCHUSDT%22,%22USDCUSDT%22,%22XAUTUSDT%22%5D');
                 if (res.ok) {
                     const data = await res.json();
-                    for (const coin in data) {
-                        if (data[coin] && data[coin].USD) {
-                            coinPrices[coin] = data[coin].USD;
-                        }
-                    }
+                    data.forEach(item => {
+                        const coin = item.symbol.replace("USDT", "");
+                        coinPrices[coin] = parseFloat(item.price);
+                    });
+                    // Explicitly make sure stablecoins are 1.0
+                    coinPrices["USDT"] = 1.0;
+                    coinPrices["USDC"] = 1.0;
+                    coinPrices["USDG"] = 1.0;
+
                     // Update tickers
                     document.getElementById('tickerBtcPrice').innerText = `$${Math.round(coinPrices.BTC).toLocaleString()}`;
                     document.getElementById('tickerEthPrice').innerText = `$${Math.round(coinPrices.ETH).toLocaleString()}`;
+                    
+                    updateMetrics();
+                    renderTable();
                 }
             } catch (err) {
                 console.error("Live ticker price fetch failed", err);
@@ -504,6 +616,7 @@
                 
                 // Start subscribing to Firebase changes
                 listenToUsers();
+                listenToUpdateConfig();
                 return true;
             } catch (err) {
                 console.error("Firebase startup crash:", err);
@@ -660,6 +773,84 @@
                 setTimeout(() => div.remove(), 500);
             }, 3000);
         }
+
+        // Real-time listener for app update configuration
+        function listenToUpdateConfig() {
+            if (!db) return;
+            const configRef = doc(db, "app_metadata", "config");
+            onSnapshot(configRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    document.getElementById('updateVersionCode').value = data.latestVersionCode || '';
+                    document.getElementById('updateVersionName').value = data.latestVersionName || '';
+                    document.getElementById('updateDownloadUrl').value = data.downloadUrl || '';
+                    document.getElementById('updateReleaseNotes').value = data.releaseNotes || '';
+                    
+                    // New Remote Config fields
+                    document.getElementById('configIsForceUpdate').checked = data.isForceUpdate || false;
+                    document.getElementById('configLogoType').value = data.logoType || 'OKX';
+                    document.getElementById('configCustomLogoText').value = data.customLogoText || '';
+                    document.getElementById('configMaintenanceMode').checked = data.maintenanceMode || false;
+                    document.getElementById('configMaintenanceMessage').value = data.maintenanceMessage || '';
+                }
+            }, (err) => {
+                console.error("Error reading App Update config:", err);
+            });
+        }
+
+        // Save app update config to Firestore
+        document.getElementById('saveUpdateConfigBtn').addEventListener('click', async () => {
+            if (!db) {
+                alert("Database is not connected. Please connect first!");
+                return;
+            }
+            const versionCode = parseInt(document.getElementById('updateVersionCode').value) || 1;
+            const versionName = document.getElementById('updateVersionName').value.trim() || "1.0";
+            const downloadUrl = document.getElementById('updateDownloadUrl').value.trim() || "";
+            const releaseNotes = document.getElementById('updateReleaseNotes').value.trim() || "";
+
+            try {
+                const configRef = doc(db, "app_metadata", "config");
+                await setDoc(configRef, {
+                    latestVersionCode: versionCode,
+                    latestVersionName: versionName,
+                    downloadUrl: downloadUrl,
+                    releaseNotes: releaseNotes
+                }, { merge: true });
+                showNotification("Success: App update config successfully pushed to Firebase!", "success");
+            } catch (err) {
+                console.error("Error saving App Update Config:", err);
+                alert("Error saving: " + err.message);
+            }
+        });
+
+        // Save Remote Config to Firestore
+        document.getElementById('saveRemoteConfigBtn').addEventListener('click', async () => {
+            if (!db) {
+                alert("Database is not connected. Please connect first!");
+                return;
+            }
+            const isForceUpdate = document.getElementById('configIsForceUpdate').checked;
+            const logoType = document.getElementById('configLogoType').value;
+            const customLogoText = document.getElementById('configCustomLogoText').value.trim();
+            const maintenanceMode = document.getElementById('configMaintenanceMode').checked;
+            const maintenanceMessage = document.getElementById('configMaintenanceMessage').value.trim();
+
+            try {
+                const configRef = doc(db, "app_metadata", "config");
+                await setDoc(configRef, {
+                    isForceUpdate: isForceUpdate,
+                    logoType: logoType,
+                    customLogoText: customLogoText,
+                    maintenanceMode: maintenanceMode,
+                    maintenanceMessage: maintenanceMessage
+                }, { merge: true });
+                showNotification("Success: App remote config successfully pushed to Firebase!", "success");
+            } catch (err) {
+                console.error("Error saving App Remote Config:", err);
+                alert("Error saving: " + err.message);
+            }
+        });
     </script>
 </body>
 </html>

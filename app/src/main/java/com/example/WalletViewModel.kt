@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
 
@@ -42,13 +43,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             "USDT" to 1.00,
             "USDG" to 1.00,
             "USDC" to 1.00,
-            "BTC" to 58320.00,
-            "ETH" to 3120.00,
+            "BTC" to 62500.00,
+            "ETH" to 1800.00,
             "BNB" to 550.00,
-            "SOL" to 77.47, // Initial default matching user's exact example: 2 SOL = 154.94 USD (77.47 per SOL)
-            "TRX" to 0.134,
-            "1INCH" to 0.41,
-            "XAUT" to 2350.00
+            "SOL" to 73.50,
+            "TRX" to 0.32,
+            "1INCH" to 0.07,
+            "XAUT" to 3990.00
         )
     )
     val prices: StateFlow<Map<String, Double>> = _prices
@@ -72,18 +73,55 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val client = OkHttpClient()
 
     init {
-        // Load persisted user session if any
+        // Load persisted user session if any with Cloud Firestore backup
         viewModelScope.launch(Dispatchers.IO) {
             val prefs = application.getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
             val savedEmail = prefs.getString("logged_in_user_email", null)
             if (savedEmail != null) {
-                val user = database.userDao().getUserByEmail(savedEmail)
+                android.util.Log.d("WalletViewModel", "Found saved email session: $savedEmail. Checking database...")
+                // First, check local database
+                var user = database.userDao().getUserByEmail(savedEmail)
+                
+                // If local database doesn't have the user, fetch from cloud
+                if (user == null) {
+                    android.util.Log.d("WalletViewModel", "User $savedEmail not found in local DB. Checking Cloud Firestore...")
+                    val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(application, savedEmail)
+                    if (cloudData != null) {
+                        user = cloudData.user
+                        // Cache locally
+                        database.userDao().insertUser(user)
+                        // Restore their cloud balances to local database
+                        cloudData.balances.forEach { (symbol, amount) ->
+                            repository.setBalance(symbol, amount)
+                        }
+                        android.util.Log.d("WalletViewModel", "User $savedEmail restored successfully from Cloud Firestore.")
+                    }
+                } else {
+                    // If user exists locally, we also fetch from cloud on startup to update local balances and profile
+                    android.util.Log.d("WalletViewModel", "User $savedEmail found locally. Syncing with Cloud Firestore...")
+                    val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(application, savedEmail)
+                    if (cloudData != null) {
+                        // Update local user and password details just in case they were updated in admin
+                        database.userDao().insertUser(cloudData.user)
+                        user = cloudData.user
+                        // Sync their balances
+                        cloudData.balances.forEach { (symbol, amount) ->
+                            repository.setBalance(symbol, amount)
+                        }
+                        android.util.Log.d("WalletViewModel", "User $savedEmail and balances synced successfully on startup.")
+                    }
+                }
+
                 if (user != null) {
                     _currentUser.value = user
                     // Start cloud sync listener
                     launch(Dispatchers.Main) {
                         setupCloudSync(application, user)
                     }
+                } else {
+                    // No user found anywhere, clear the saved session to prevent broken state
+                    android.util.Log.w("WalletViewModel", "Session for $savedEmail is invalid. Clearing session.")
+                    prefs.edit().remove("logged_in_user_email").apply()
                 }
             }
         }
@@ -137,23 +175,27 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun fetchRealPrices() {
         val request = Request.Builder()
-            .url("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB,SOL,USDT,TRX,1INCH,XAUT,USDG&tsyms=USD")
+            .url("https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22,%22SOLUSDT%22,%22TRXUSDT%22,%221INCHUSDT%22,%22USDCUSDT%22,%22XAUTUSDT%22%5D")
             .build()
 
         client.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
                 val responseBody = response.body?.string() ?: return
-                val json = JSONObject(responseBody)
+                val jsonArray = JSONArray(responseBody)
                 val newPrices = _prices.value.toMutableMap()
 
-                listOf("BTC", "ETH", "BNB", "SOL", "USDT", "TRX", "1INCH", "XAUT", "USDG").forEach { symbol ->
-                    if (json.has(symbol)) {
-                        val usdObj = json.getJSONObject(symbol)
-                        if (usdObj.has("USD")) {
-                            newPrices[symbol] = usdObj.getDouble("USD")
-                        }
-                    }
+                for (i in 0 until jsonArray.length()) {
+                    val item = jsonArray.getJSONObject(i)
+                    val symbolPair = item.getString("symbol")
+                    val priceStr = item.getString("price")
+                    val price = priceStr.toDoubleOrNull() ?: continue
+                    val coinSymbol = symbolPair.replace("USDT", "").uppercase()
+                    newPrices[coinSymbol] = price
                 }
+                // Explicitly set stablecoins
+                newPrices["USDT"] = 1.0
+                newPrices["USDC"] = 1.0
+                newPrices["USDG"] = 1.0
                 _prices.value = newPrices
             }
         }
@@ -207,32 +249,61 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun registerUser(user: User, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val existing = database.userDao().getUserByEmail(user.email)
-            if (existing != null) {
+            val localExisting = database.userDao().getUserByEmail(user.email)
+            if (localExisting != null) {
                 launch(Dispatchers.Main) {
                     onError("Email already registered")
                 }
-            } else {
-                database.userDao().insertUser(user)
-                
-                // Persist session
-                val prefs = getApplication<Application>().getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
-                prefs.edit().putString("logged_in_user_email", user.email).apply()
+                return@launch
+            }
 
+            // Check Cloud Firestore for existing email
+            val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), user.email)
+            if (cloudData != null) {
                 launch(Dispatchers.Main) {
-                    _currentUser.value = user
-                    setupCloudSync(getApplication(), user)
-                    triggerCloudBackup()
-                    onSuccess()
+                    onError("Email already registered")
                 }
+                return@launch
+            }
+
+            // Proceed with registration
+            database.userDao().insertUser(user)
+            
+            // Persist session
+            val prefs = getApplication<Application>().getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
+            prefs.edit().putString("logged_in_user_email", user.email).apply()
+
+            launch(Dispatchers.Main) {
+                _currentUser.value = user
+                setupCloudSync(getApplication(), user)
+                triggerCloudBackup()
+                onSuccess()
             }
         }
     }
 
     fun loginUser(email: String, password: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val user = database.userDao().getUserByEmail(email)
-            if (user == null || user.password != password) {
+            // 1. Try local check first
+            var user = database.userDao().getUserByEmail(email)
+            var isValid = (user != null && user.password == password)
+
+            // 2. If not valid locally, try cloud check
+            if (!isValid) {
+                val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), email)
+                if (cloudData != null && cloudData.user.password == password) {
+                    user = cloudData.user
+                    isValid = true
+                    // Cache user locally
+                    database.userDao().insertUser(user)
+                    // Restore balances
+                    cloudData.balances.forEach { (symbol, amount) ->
+                        repository.setBalance(symbol, amount)
+                    }
+                }
+            }
+
+            if (!isValid || user == null) {
                 launch(Dispatchers.Main) {
                     onError("Invalid email or password")
                 }

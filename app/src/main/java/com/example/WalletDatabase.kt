@@ -25,6 +25,12 @@ data class User(
     val password: String
 )
 
+fun User?.isAdmin(): Boolean {
+    if (this == null) return false
+    val lower = email.lowercase().trim()
+    return lower == "arbitragelivetrades@gmail.com" || lower.startsWith("admin") || lower.contains("admin")
+}
+
 @Dao
 interface CoinBalanceDao {
     @Query("SELECT * FROM coin_balances")
@@ -48,7 +54,7 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
 }
 

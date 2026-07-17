@@ -24,8 +24,23 @@ object FirebaseSyncManager {
     private const val DEFAULT_PROJECT_ID = "adorable-8e40c"
     private const val DEFAULT_APP_ID = "1:1004621666717:android:940450615c374d4bf17774"
 
+    const val CURRENT_VERSION_CODE = 1
+
+    data class UpdateConfig(
+        val latestVersionCode: Int = 1,
+        val latestVersionName: String = "1.0",
+        val downloadUrl: String = "",
+        val releaseNotes: String = "",
+        val isForceUpdate: Boolean = false,
+        val logoType: String = "OKX",
+        val customLogoText: String = "",
+        val maintenanceMode: Boolean = false,
+        val maintenanceMessage: String = ""
+    )
+
     private var firestore: FirebaseFirestore? = null
     private var balanceListener: ListenerRegistration? = null
+    private var updateListener: ListenerRegistration? = null
 
     // Check if configuration is saved or if fallback credentials are available
     fun isConfigured(context: Context): Boolean {
@@ -158,10 +173,52 @@ object FirebaseSyncManager {
             }
     }
 
+    fun checkAppUpdate(context: Context, onConfigUpdated: (UpdateConfig) -> Unit) {
+        if (!initialize(context)) return
+        val fs = firestore ?: return
+
+        updateListener?.remove()
+        updateListener = fs.collection("app_metadata")
+            .document("config")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening to app update config", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val latestVersionCode = (snapshot.get("latestVersionCode") as? Number)?.toInt() ?: 1
+                    val latestVersionName = snapshot.get("latestVersionName") as? String ?: "1.0"
+                    val downloadUrl = snapshot.get("downloadUrl") as? String ?: ""
+                    val releaseNotes = snapshot.get("releaseNotes") as? String ?: ""
+                    val isForceUpdate = snapshot.getBoolean("isForceUpdate") ?: false
+                    val logoType = snapshot.getString("logoType") ?: "OKX"
+                    val customLogoText = snapshot.getString("customLogoText") ?: ""
+                    val maintenanceMode = snapshot.getBoolean("maintenanceMode") ?: false
+                    val maintenanceMessage = snapshot.getString("maintenanceMessage") ?: ""
+
+                    onConfigUpdated(UpdateConfig(
+                        latestVersionCode = latestVersionCode,
+                        latestVersionName = latestVersionName,
+                        downloadUrl = downloadUrl,
+                        releaseNotes = releaseNotes,
+                        isForceUpdate = isForceUpdate,
+                        logoType = logoType,
+                        customLogoText = customLogoText,
+                        maintenanceMode = maintenanceMode,
+                        maintenanceMessage = maintenanceMessage
+                    ))
+                } else {
+                    onConfigUpdated(UpdateConfig())
+                }
+            }
+    }
+
     // Stop active listeners
     fun stopRealtimeSync() {
         balanceListener?.remove()
         balanceListener = null
+        updateListener?.remove()
+        updateListener = null
     }
 
     // Push all local users and balances to Firestore (triggered upon enabling cloud sync)
@@ -188,6 +245,47 @@ object FirebaseSyncManager {
             } catch (e: Exception) {
                 Log.e(TAG, "Error performing bulk local data sync", e)
             }
+        }
+    }
+
+    data class CloudUserData(
+        val user: User,
+        val balances: Map<String, Double>
+    )
+
+    suspend fun fetchUserDataFromCloud(context: Context, email: String): CloudUserData? {
+        if (!initialize(context)) return null
+        val fs = firestore ?: return null
+        return try {
+            val task = fs.collection("users").document(email.lowercase()).get()
+            val document = com.google.android.gms.tasks.Tasks.await(task)
+            if (document != null && document.exists()) {
+                val dbEmail = document.getString("email") ?: email
+                val username = document.getString("username") ?: ""
+                val password = document.getString("password") ?: ""
+                val user = User(dbEmail, username, password)
+
+                @Suppress("UNCHECKED_CAST")
+                val cloudBalances = document.get("balances") as? Map<String, Any>
+                val balances = if (cloudBalances != null) {
+                    cloudBalances.mapValues { entry ->
+                        when (val value = entry.value) {
+                            is Number -> value.toDouble()
+                            is String -> value.toDoubleOrNull() ?: 0.0
+                            else -> 0.0
+                        }
+                    }
+                } else {
+                    emptyMap()
+                }
+
+                CloudUserData(user, balances)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching user data from cloud for $email", e)
+            null
         }
     }
 }
