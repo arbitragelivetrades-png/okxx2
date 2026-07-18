@@ -1642,6 +1642,7 @@ fun MainAppContainer() {
     val coinBalances by walletViewModel.coinBalances.collectAsStateWithLifecycle()
     val prices by walletViewModel.prices.collectAsStateWithLifecycle()
     val currentUser by walletViewModel.currentUser.collectAsStateWithLifecycle()
+    val showDepositReceived by walletViewModel.showDepositReceived.collectAsStateWithLifecycle()
     var pendingActionAfterAuth by remember { mutableStateOf<(() -> Unit)?>(null) }
     
     var showAddBalanceDialog by remember { mutableStateOf(false) }
@@ -1784,7 +1785,8 @@ fun MainAppContainer() {
                                         } else {
                                             withdrawFlowStep = WithdrawFlowStep.SelectAsset
                                         }
-                                    }
+                                    },
+                                    showDepositReceived = showDepositReceived
                                 )
                             }
                         }
@@ -3530,7 +3532,8 @@ fun AssetsScreenContent(
     isBalanceVisible: Boolean,
     onToggleBalance: () -> Unit,
     onDepositClick: () -> Unit,
-    onWithdrawClick: () -> Unit
+    onWithdrawClick: () -> Unit,
+    showDepositReceived: Boolean = false
 ) {
     val scrollState = rememberScrollState()
     
@@ -3639,7 +3642,44 @@ fun AssetsScreenContent(
             }
         }
         
-        Spacer(modifier = Modifier.height(14.dp))
+        if (showDepositReceived) {
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = Color(0xFF1E1E1E), thickness = 1.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .clickable { /* Tap deposit action */ }
+                    .testTag("deposit_received_row"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(Color(0xFF00D180), shape = CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "1 deposit(s) received",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            HorizontalDivider(color = Color(0xFF1E1E1E), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+        } else {
+            Spacer(modifier = Modifier.height(14.dp))
+        }
         
         // Portfolio Section Header
         Row(

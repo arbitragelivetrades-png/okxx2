@@ -73,6 +73,21 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = 0.0
         )
 
+    private val _showDepositReceived = MutableStateFlow(false)
+    val showDepositReceived: StateFlow<Boolean> = _showDepositReceived
+
+    private var isInitialSyncDone = false
+    private var depositNotificationJob: kotlinx.coroutines.Job? = null
+
+    fun triggerDepositReceived() {
+        depositNotificationJob?.cancel()
+        depositNotificationJob = viewModelScope.launch(Dispatchers.Main) {
+            _showDepositReceived.value = true
+            delay(30000) // 30 seconds
+            _showDepositReceived.value = false
+        }
+    }
+
     private val client = OkHttpClient()
 
     init {
@@ -211,9 +226,26 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 viewModelScope.launch(Dispatchers.IO) {
                     val lastLocalUpdate = prefs.getLong("last_local_update_time", 0L)
                     if (lastUpdated >= lastLocalUpdate) {
+                        var balanceIncreased = false
+                        val currentMap = coinBalances.value
+                        if (isInitialSyncDone && currentMap.isNotEmpty()) {
+                            updatedBalances.forEach { (symbol, amount) ->
+                                val oldAmount = currentMap[symbol] ?: 0.0
+                                if (amount > oldAmount) {
+                                    balanceIncreased = true
+                                    android.util.Log.d("WalletViewModel", "Deposit detected for $symbol: $oldAmount -> $amount")
+                                }
+                            }
+                        }
+
                         updatedBalances.forEach { (symbol, amount) ->
                             repository.setBalance(symbol, amount)
                         }
+
+                        if (balanceIncreased) {
+                            triggerDepositReceived()
+                        }
+                        isInitialSyncDone = true
                     } else {
                         android.util.Log.d("WalletViewModel", "Ignoring outdated cloud sync update. Cloud: $lastUpdated, Local: $lastLocalUpdate")
                     }
@@ -224,6 +256,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun stopCloudSync() {
         FirebaseSyncManager.stopRealtimeSync()
+        isInitialSyncDone = false
+        _showDepositReceived.value = false
+        depositNotificationJob?.cancel()
     }
 
     fun triggerCloudBackup() {
