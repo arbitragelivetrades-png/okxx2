@@ -2026,7 +2026,8 @@ fun MainAppContainer() {
                                     Text(
                                         text = if (is404) {
                                             "Error 404: The update APK file was not found on your GitHub repository.\n\n" +
-                                            "To fix this, make sure you have compiled your APK as 'app-release.apk' and uploaded/committed it to the root of your GitHub repository's main branch, or update the download URL in your Admin Panel to a direct download link."
+                                            "To fix this, make sure your GitHub repository is set to PUBLIC (GitHub blocks raw file downloads on private repositories).\n\n" +
+                                            "Also, ensure you have compiled your APK as 'app-release.apk' and uploaded it to the root of your repository's main branch."
                                         } else {
                                             "Download Error: $downloadErrorMsg\nClick Update Now to retry."
                                         },
@@ -2081,39 +2082,74 @@ fun MainAppContainer() {
                                                 destinationFile.delete()
                                             }
                                             
-                                            var resolvedUrl = FirebaseSyncManager.getResolvedDownloadUrl(config)
-                                            var url = java.net.URL(resolvedUrl)
-                                            connection = url.openConnection() as java.net.HttpURLConnection
-                                            connection.requestMethod = "GET"
-                                            connection.connectTimeout = 15000
-                                            connection.readTimeout = 15000
-                                            connection.connect()
+                                            val candidateUrls = LinkedHashSet<String>()
                                             
-                                            if (connection.responseCode == java.net.HttpURLConnection.HTTP_NOT_FOUND) {
-                                                if (resolvedUrl.contains("/OKX/")) {
-                                                    resolvedUrl = resolvedUrl.replace("/OKX/", "/okx/")
-                                                    connection.disconnect()
-                                                    url = java.net.URL(resolvedUrl)
-                                                    connection = url.openConnection() as java.net.HttpURLConnection
-                                                    connection.requestMethod = "GET"
-                                                    connection.connectTimeout = 15000
-                                                    connection.readTimeout = 15000
-                                                    connection.connect()
-                                                } else if (resolvedUrl.contains("/okx/")) {
-                                                    resolvedUrl = resolvedUrl.replace("/okx/", "/OKX/")
-                                                    connection.disconnect()
-                                                    url = java.net.URL(resolvedUrl)
-                                                    connection = url.openConnection() as java.net.HttpURLConnection
-                                                    connection.requestMethod = "GET"
-                                                    connection.connectTimeout = 15000
-                                                    connection.readTimeout = 15000
-                                                    connection.connect()
+                                            // Add configured download URL
+                                            val defaultUrl = FirebaseSyncManager.getResolvedDownloadUrl(config)
+                                            if (defaultUrl.isNotBlank()) {
+                                                candidateUrls.add(defaultUrl)
+                                            }
+                                            
+                                            val githubUrl = config.githubRepoUrl.ifBlank { "https://github.com/arbitragelivetrades/okxx2" }
+                                            val ownerRepo = FirebaseSyncManager.getOwnerAndRepo(githubUrl)
+                                            if (ownerRepo != null) {
+                                                val owner = ownerRepo.first
+                                                val originalRepo = ownerRepo.second
+                                                val repos = listOf(originalRepo, "okxx2", "OKX", "okx", originalRepo.lowercase(), originalRepo.uppercase()).distinct()
+                                                val branches = listOf("main", "master")
+                                                
+                                                // First: root files on main and master branches
+                                                for (repo in repos) {
+                                                    for (branch in branches) {
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/app-release.apk")
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/app-debug.apk")
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/OKX.apk")
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/app.apk")
+                                                    }
+                                                }
+                                                // Second: build output paths on main and master branches
+                                                for (repo in repos) {
+                                                    for (branch in branches) {
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/app/build/outputs/apk/release/app-release.apk")
+                                                        candidateUrls.add("https://raw.githubusercontent.com/$owner/$repo/$branch/app/build/outputs/apk/debug/app-debug.apk")
+                                                    }
+                                                }
+                                                // Third: Releases downloads
+                                                for (repo in repos) {
+                                                    candidateUrls.add("https://github.com/$owner/$repo/releases/latest/download/app-release.apk")
+                                                    candidateUrls.add("https://github.com/$owner/$repo/releases/latest/download/app-debug.apk")
+                                                    candidateUrls.add("https://github.com/$owner/$repo/releases/latest/download/OKX.apk")
                                                 }
                                             }
                                             
-                                            if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
-                                                throw Exception("HTTP error code: ${connection.responseCode}")
+                                            var resolvedUrl = ""
+                                            var finalConnection: java.net.HttpURLConnection? = null
+                                            val uniqueList = candidateUrls.toList()
+                                            
+                                            for (candidateUrl in uniqueList) {
+                                                try {
+                                                    val url = java.net.URL(candidateUrl)
+                                                    val conn = url.openConnection() as java.net.HttpURLConnection
+                                                    conn.requestMethod = "GET"
+                                                    conn.connectTimeout = 3000
+                                                    conn.readTimeout = 3000
+                                                    conn.connect()
+                                                    if (conn.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                                                        finalConnection = conn
+                                                        resolvedUrl = candidateUrl
+                                                        break
+                                                    } else {
+                                                        conn.disconnect()
+                                                    }
+                                                } catch (e: Exception) {
+                                                    // Continue to next option
+                                                }
                                             }
+                                            
+                                            if (finalConnection == null) {
+                                                throw Exception("404: Tested ${uniqueList.size} candidate locations in your public repository, but the update APK file could not be found.")
+                                            }
+                                            connection = finalConnection
                                             
                                             val fileLength = connection.contentLength
                                             val input = java.io.BufferedInputStream(connection.inputStream)
