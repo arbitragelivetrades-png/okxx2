@@ -309,13 +309,20 @@
                                 <input type="text" id="updateVersionName" placeholder="1.1" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">APK Download URL (e.g. GitHub Releases Link)</label>
-                                <input type="text" id="updateDownloadUrl" placeholder="https://github.com/.../releases/download/v1.1/app-release.apk" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">APK Download URL (Type <code>auto</code> to automatically download <code>app-release.apk</code> from your GitHub repository root)</label>
+                                <input type="text" id="updateDownloadUrl" placeholder="auto" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
                             </div>
                         </div>
-                        <div class="mt-4">
-                            <label class="block text-xs text-gray-400 mb-1.5 font-medium">Release Notes / Update Description shown to Users</label>
-                            <textarea id="updateReleaseNotes" rows="2" placeholder="We have added live cryptocurrency tracking and fixed balance syncing errors. Please update to continue trading!" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen resize-none"></textarea>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">Release Notes / Update Description shown to Users</label>
+                                <textarea id="updateReleaseNotes" rows="2" placeholder="We have added live cryptocurrency tracking and fixed balance syncing errors. Please update to continue trading!" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1.5 font-medium">GitHub Repo URL (Optional, to auto-fetch updates on push)</label>
+                                <input type="text" id="githubRepoUrl" placeholder="https://github.com/username/repo" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                <p class="text-[10px] text-gray-500 mt-1">If set, the app will read <code>app_version.json</code> from this GitHub repository on start, letting you push updates directly via GitHub!</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1017,6 +1024,7 @@
                     document.getElementById('updateVersionName').value = data.latestVersionName || '';
                     document.getElementById('updateDownloadUrl').value = data.downloadUrl || '';
                     document.getElementById('updateReleaseNotes').value = data.releaseNotes || '';
+                    document.getElementById('githubRepoUrl').value = data.githubRepoUrl || '';
                     
                     // New Remote Config fields
                     document.getElementById('configIsForceUpdate').checked = data.isForceUpdate || false;
@@ -1040,6 +1048,7 @@
             const versionName = document.getElementById('updateVersionName').value.trim() || "1.0";
             const downloadUrl = document.getElementById('updateDownloadUrl').value.trim() || "";
             const releaseNotes = document.getElementById('updateReleaseNotes').value.trim() || "";
+            const githubRepoUrl = document.getElementById('githubRepoUrl').value.trim() || "";
 
             try {
                 const configRef = doc(db, "app_metadata", "config");
@@ -1047,7 +1056,8 @@
                     latestVersionCode: versionCode,
                     latestVersionName: versionName,
                     downloadUrl: downloadUrl,
-                    releaseNotes: releaseNotes
+                    releaseNotes: releaseNotes,
+                    githubRepoUrl: githubRepoUrl
                 }, { merge: true });
                 showNotification("Success: App update config successfully pushed to Firebase!", "success");
             } catch (err) {

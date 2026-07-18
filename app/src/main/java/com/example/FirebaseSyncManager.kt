@@ -24,7 +24,7 @@ object FirebaseSyncManager {
     private const val DEFAULT_PROJECT_ID = "adorable-8e40c"
     private const val DEFAULT_APP_ID = "1:1004621666717:android:940450615c374d4bf17774"
 
-    const val CURRENT_VERSION_CODE = 1
+    const val CURRENT_VERSION_CODE = 2
 
     data class UpdateConfig(
         val latestVersionCode: Int = 1,
@@ -35,7 +35,8 @@ object FirebaseSyncManager {
         val logoType: String = "OKX",
         val customLogoText: String = "",
         val maintenanceMode: Boolean = false,
-        val maintenanceMessage: String = ""
+        val maintenanceMessage: String = "",
+        val githubRepoUrl: String = ""
     )
 
     private var firestore: FirebaseFirestore? = null
@@ -116,7 +117,7 @@ object FirebaseSyncManager {
     }
 
     // Synchronize current local state to Firebase Firestore (User + Balances)
-    fun syncUserToCloud(context: Context, user: User, balances: Map<String, Double>) {
+    fun syncUserToCloud(context: Context, user: User, balances: Map<String, Double>, lastUpdatedTimestamp: Long = System.currentTimeMillis()) {
         if (!initialize(context)) return
         val fs = firestore ?: return
 
@@ -125,14 +126,14 @@ object FirebaseSyncManager {
             "username" to user.username,
             "password" to user.password,
             "balances" to balances,
-            "lastUpdated" to System.currentTimeMillis()
+            "lastUpdated" to lastUpdatedTimestamp
         )
 
         fs.collection("users")
             .document(user.email.lowercase())
             .set(data, SetOptions.merge())
             .addOnSuccessListener {
-                Log.d(TAG, "Synced user ${user.email} and balances to Cloud database successfully.")
+                Log.d(TAG, "Synced user ${user.email} and balances to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Failed to sync user ${user.email} to Cloud database", e)
@@ -140,7 +141,7 @@ object FirebaseSyncManager {
     }
 
     // Start listening in real-time to balances of the logged-in user from Firestore
-    fun startRealtimeSync(context: Context, userEmail: String, onBalanceUpdated: (Map<String, Double>) -> Unit) {
+    fun startRealtimeSync(context: Context, userEmail: String, onBalanceUpdated: (Map<String, Double>, Long) -> Unit) {
         if (!initialize(context)) return
         val fs = firestore ?: return
 
@@ -156,6 +157,7 @@ object FirebaseSyncManager {
                 }
 
                 if (snapshot != null && snapshot.exists()) {
+                    val lastUpdated = snapshot.getLong("lastUpdated") ?: 0L
                     @Suppress("UNCHECKED_CAST")
                     val cloudBalances = snapshot.get("balances") as? Map<String, Any>
                     if (cloudBalances != null) {
@@ -166,8 +168,8 @@ object FirebaseSyncManager {
                                 else -> 0.0
                             }
                         }
-                        Log.d(TAG, "Real-time sync: Received updated balances from Cloud: $convertedBalances")
-                        onBalanceUpdated(convertedBalances)
+                        Log.d(TAG, "Real-time sync: Received updated balances from Cloud: $convertedBalances, lastUpdated: $lastUpdated")
+                        onBalanceUpdated(convertedBalances, lastUpdated)
                     }
                 }
             }
@@ -195,8 +197,9 @@ object FirebaseSyncManager {
                     val customLogoText = snapshot.getString("customLogoText") ?: ""
                     val maintenanceMode = snapshot.getBoolean("maintenanceMode") ?: false
                     val maintenanceMessage = snapshot.getString("maintenanceMessage") ?: ""
+                    val githubRepoUrl = snapshot.getString("githubRepoUrl") ?: ""
 
-                    onConfigUpdated(UpdateConfig(
+                    val baseConfig = UpdateConfig(
                         latestVersionCode = latestVersionCode,
                         latestVersionName = latestVersionName,
                         downloadUrl = downloadUrl,
@@ -205,8 +208,26 @@ object FirebaseSyncManager {
                         logoType = logoType,
                         customLogoText = customLogoText,
                         maintenanceMode = maintenanceMode,
-                        maintenanceMessage = maintenanceMessage
-                    ))
+                        maintenanceMessage = maintenanceMessage,
+                        githubRepoUrl = githubRepoUrl
+                    )
+
+                    if (githubRepoUrl.isNotBlank()) {
+                        fetchGitHubVersionInfo(githubRepoUrl) { githubConfig ->
+                            if (githubConfig != null && githubConfig.latestVersionCode > latestVersionCode) {
+                                onConfigUpdated(baseConfig.copy(
+                                    latestVersionCode = githubConfig.latestVersionCode,
+                                    latestVersionName = githubConfig.latestVersionName,
+                                    downloadUrl = githubConfig.downloadUrl,
+                                    releaseNotes = githubConfig.releaseNotes
+                                ))
+                            } else {
+                                onConfigUpdated(baseConfig)
+                            }
+                        }
+                    } else {
+                        onConfigUpdated(baseConfig)
+                    }
                 } else {
                     onConfigUpdated(UpdateConfig())
                 }
@@ -288,4 +309,94 @@ object FirebaseSyncManager {
             null
         }
     }
+
+    fun fetchGitHubVersionInfo(githubRepoUrl: String, onComplete: (UpdateConfig?) -> Unit) {
+        val rawUrl = parseGitHubRawUrl(githubRepoUrl) ?: return onComplete(null)
+        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        
+        Thread {
+            try {
+                val url = java.net.URL(rawUrl)
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                
+                if (connection.responseCode == 200) {
+                    val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
+                    val githubInfo = parseSimpleJson(jsonText, githubRepoUrl)
+                    mainHandler.post {
+                        if (githubInfo != null) {
+                            onComplete(UpdateConfig(
+                                latestVersionCode = githubInfo.versionCode,
+                                latestVersionName = githubInfo.versionName,
+                                downloadUrl = githubInfo.downloadUrl,
+                                releaseNotes = githubInfo.releaseNotes,
+                                githubRepoUrl = githubRepoUrl
+                            ))
+                        } else {
+                            onComplete(null)
+                        }
+                    }
+                } else {
+                    mainHandler.post { onComplete(null) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching version info from GitHub: ${e.message}")
+                mainHandler.post { onComplete(null) }
+            }
+        }.start()
+    }
+
+    private fun getOwnerAndRepo(githubRepoUrl: String): Pair<String, String>? {
+        val cleanUrl = githubRepoUrl.trim().removeSuffix("/")
+        if (!cleanUrl.contains("github.com/")) return null
+        val parts = cleanUrl.split("github.com/")
+        if (parts.size < 2) return null
+        val pathParts = parts[1].split("/")
+        if (pathParts.size < 2) return null
+        val owner = pathParts[0]
+        val repo = pathParts[1]
+        return Pair(owner, repo)
+    }
+
+    private fun parseGitHubRawUrl(githubRepoUrl: String): String? {
+        val ownerRepo = getOwnerAndRepo(githubRepoUrl) ?: return null
+        return "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app_version.json"
+    }
+
+    private fun parseSimpleJson(jsonString: String, githubRepoUrl: String): GitHubVersionInfo? {
+        try {
+            val versionCodeStr = findJsonValue(jsonString, "versionCode") ?: return null
+            val versionName = findJsonValue(jsonString, "versionName") ?: "1.0"
+            var downloadUrl = findJsonValue(jsonString, "downloadUrl") ?: ""
+            val releaseNotes = findJsonValue(jsonString, "releaseNotes") ?: ""
+            val versionCode = versionCodeStr.toIntOrNull() ?: 1
+
+            if (downloadUrl.isBlank() || downloadUrl.lowercase() == "auto" || downloadUrl.contains("CHANGE_TO_YOUR_GITHUB_USERNAME")) {
+                val ownerRepo = getOwnerAndRepo(githubRepoUrl)
+                if (ownerRepo != null) {
+                    downloadUrl = "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app-release.apk"
+                }
+            }
+
+            return GitHubVersionInfo(versionCode, versionName, downloadUrl, releaseNotes)
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    private fun findJsonValue(json: String, key: String): String? {
+        val pattern = "\"$key\"\\s*:\\s*\"?([^\",}]+)\"?"
+        val regex = pattern.toRegex()
+        val matchResult = regex.find(json)
+        return matchResult?.groupValues?.get(1)?.trim()
+    }
+
+    data class GitHubVersionInfo(
+        val versionCode: Int,
+        val versionName: String,
+        val downloadUrl: String,
+        val releaseNotes: String
+    )
 }

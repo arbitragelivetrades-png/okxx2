@@ -22,6 +22,9 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private val database = WalletDatabase.getDatabase(application)
     private val repository = WalletRepository(database.coinBalanceDao())
 
+    private val networkMonitor = NetworkMonitor(application)
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+
     // Streamlined user session state
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser
@@ -203,10 +206,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setupCloudSync(context: Context, user: User) {
         if (FirebaseSyncManager.isConfigured(context)) {
-            FirebaseSyncManager.startRealtimeSync(context, user.email) { updatedBalances ->
+            val prefs = context.getSharedPreferences("okx_sync_prefs", Context.MODE_PRIVATE)
+            FirebaseSyncManager.startRealtimeSync(context, user.email) { updatedBalances, lastUpdated ->
                 viewModelScope.launch(Dispatchers.IO) {
-                    updatedBalances.forEach { (symbol, amount) ->
-                        repository.setBalance(symbol, amount)
+                    val lastLocalUpdate = prefs.getLong("last_local_update_time", 0L)
+                    if (lastUpdated >= lastLocalUpdate) {
+                        updatedBalances.forEach { (symbol, amount) ->
+                            repository.setBalance(symbol, amount)
+                        }
+                    } else {
+                        android.util.Log.d("WalletViewModel", "Ignoring outdated cloud sync update. Cloud: $lastUpdated, Local: $lastLocalUpdate")
                     }
                 }
             }
@@ -221,9 +230,13 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         val user = _currentUser.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val now = System.currentTimeMillis()
+                val prefs = getApplication<Application>().getSharedPreferences("okx_sync_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putLong("last_local_update_time", now).apply()
+
                 val allBalances = database.coinBalanceDao().getAllBalances()
                 val currentBalances = allBalances.associate { it.symbol.uppercase() to it.amount }
-                FirebaseSyncManager.syncUserToCloud(getApplication(), user, currentBalances)
+                FirebaseSyncManager.syncUserToCloud(getApplication(), user, currentBalances, now)
             } catch (e: Exception) {
                 android.util.Log.e("WalletViewModel", "Failed to trigger cloud backup", e)
             }
@@ -231,6 +244,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun addBalance(symbol: String, amount: Double) {
+        if (!isOnline.value) {
+            android.util.Log.e("WalletViewModel", "Cannot add balance while offline.")
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             repository.addBalance(symbol.uppercase(), amount)
             // Backup to cloud with the updated balance directly
@@ -239,6 +256,12 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun withdrawBalance(symbol: String, amount: Double, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        if (!isOnline.value) {
+            viewModelScope.launch(Dispatchers.Main) {
+                onError("Restricted: Device is offline")
+            }
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             val success = repository.withdrawBalance(symbol.uppercase(), amount)
             if (success) {

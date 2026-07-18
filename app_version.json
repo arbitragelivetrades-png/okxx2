@@ -1,0 +1,6 @@
+{
+  "versionCode": 3,
+  "versionName": "1.2",
+  "downloadUrl": "auto",
+  "releaseNotes": "Automatic background updater enabled! The app can now pull new updates directly from your GitHub repository changes automatically without needing manual links."
+}

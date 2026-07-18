@@ -1637,6 +1637,7 @@ fun MainAppContainer() {
 
     // Wallet State from Database/ViewModel
     val walletViewModel: WalletViewModel = viewModel()
+    val isOnline by walletViewModel.isOnline.collectAsStateWithLifecycle()
     val totalBalanceUsd by walletViewModel.totalBalanceUsd.collectAsStateWithLifecycle()
     val coinBalances by walletViewModel.coinBalances.collectAsStateWithLifecycle()
     val prices by walletViewModel.prices.collectAsStateWithLifecycle()
@@ -1685,13 +1686,43 @@ fun MainAppContainer() {
                     )
                 }
             ) { innerPadding ->
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(PureBlack)
                         .padding(innerPadding)
                 ) {
-                    when (currentTab) {
+                    if (!isOnline) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF801A1A))
+                                .padding(vertical = 8.dp, horizontal = 16.dp)
+                                .testTag("offline_restricted_banner")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudOff,
+                                    contentDescription = "Cloud Off",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Offline Mode: Balance actions restricted.",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        when (currentTab) {
                         BottomTab.OKX -> {
                             OkxPullToRefresh(
                                 isRefreshing = isRefreshing,
@@ -1767,6 +1798,7 @@ fun MainAppContainer() {
                     }
                 }
             }
+        }
 
             // Full-screen overlay of Deposit Flow screens
             if (depositFlowStep != null) {
@@ -4329,6 +4361,7 @@ fun AddWithdrawBalanceDialog(
     onDismiss: () -> Unit,
     viewModel: WalletViewModel
 ) {
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val prices by viewModel.prices.collectAsStateWithLifecycle()
     val balances by viewModel.coinBalances.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
@@ -4661,9 +4694,36 @@ fun AddWithdrawBalanceDialog(
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    if (!isOnline) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF321414), shape = RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF801A1A), shape = RoundedCornerShape(8.dp))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = "Offline Mode",
+                                tint = Color(0xFFE57373),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Restricted: Balance adjustments are disabled while offline to prevent synchronization conflicts.",
+                                color = Color(0xFFFFCDD2),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                     
                     // Submit Action Button
                     Button(
+                        enabled = isOnline,
                         onClick = {
                             if (amountDouble > 0.0) {
                                 if (isAddingMode) {
@@ -4685,12 +4745,17 @@ fun AddWithdrawBalanceDialog(
                             .fillMaxWidth()
                             .height(48.dp)
                             .testTag("submit_balance_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OkxGreen,
+                            contentColor = PureBlack,
+                            disabledContainerColor = Color(0xFF2C2C2E),
+                            disabledContentColor = Color.Gray
+                        ),
                         shape = RoundedCornerShape(24.dp)
                     ) {
                         Text(
                             text = if (isAddingMode) "Add to Balance" else "Withdraw from Balance",
-                            color = PureBlack,
+                            color = if (isOnline) PureBlack else Color.Gray,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -5961,6 +6026,7 @@ fun WithdrawDetailsScreen(
     onBack: () -> Unit,
     onSuccess: (Double) -> Unit
 ) {
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     var address by remember { mutableStateOf(preEnteredAddress) }
     var amountText by remember { mutableStateOf("") }
     val availableBalance = coinBalances[symbol] ?: 0.0
@@ -6180,8 +6246,35 @@ fun WithdrawDetailsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            if (!isOnline) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF321414), shape = RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFF801A1A), shape = RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = "Offline Mode",
+                        tint = Color(0xFFE57373),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Restricted: Withdrawals are disabled while offline to prevent synchronization conflicts.",
+                        color = Color(0xFFFFCDD2),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Withdraw Button
             Button(
+                enabled = isOnline,
                 onClick = {
                     if (address.isEmpty()) {
                         showError = "Please enter a valid withdrawal address."
@@ -6208,13 +6301,15 @@ fun WithdrawDetailsScreen(
                     .height(48.dp)
                     .testTag("withdraw_confirm_button"),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (address.isNotEmpty() && amountDouble > 0.0 && amountDouble <= availableBalance) OkxGreen else Color(0xFF2C2C2E)
+                    containerColor = if (address.isNotEmpty() && amountDouble > 0.0 && amountDouble <= availableBalance) OkxGreen else Color(0xFF2C2C2E),
+                    disabledContainerColor = Color(0xFF1C1C1E),
+                    disabledContentColor = Color.Gray
                 ),
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Text(
                     text = "Withdraw",
-                    color = if (address.isNotEmpty() && amountDouble > 0.0 && amountDouble <= availableBalance) PureBlack else Color.Gray,
+                    color = if (isOnline && address.isNotEmpty() && amountDouble > 0.0 && amountDouble <= availableBalance) PureBlack else Color.Gray,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
