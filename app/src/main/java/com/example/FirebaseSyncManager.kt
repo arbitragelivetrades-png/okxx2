@@ -36,7 +36,11 @@ object FirebaseSyncManager {
         val customLogoText: String = "",
         val maintenanceMode: Boolean = false,
         val maintenanceMessage: String = "",
-        val githubRepoUrl: String = ""
+        val githubRepoUrl: String = "",
+        val logoImageUrl: String = "",
+        val primaryColorHex: String = "",
+        val homeBannerUrl: String = "",
+        val customAppName: String = ""
     )
 
     private var firestore: FirebaseFirestore? = null
@@ -235,6 +239,10 @@ object FirebaseSyncManager {
                     val maintenanceMode = snapshot.getBoolean("maintenanceMode") ?: false
                     val maintenanceMessage = snapshot.getString("maintenanceMessage") ?: ""
                     val githubRepoUrl = snapshot.getString("githubRepoUrl") ?: ""
+                    val logoImageUrl = snapshot.getString("logoImageUrl") ?: ""
+                    val primaryColorHex = snapshot.getString("primaryColorHex") ?: ""
+                    val homeBannerUrl = snapshot.getString("homeBannerUrl") ?: ""
+                    val customAppName = snapshot.getString("customAppName") ?: ""
 
                     val baseConfig = UpdateConfig(
                         latestVersionCode = latestVersionCode,
@@ -246,7 +254,11 @@ object FirebaseSyncManager {
                         customLogoText = customLogoText,
                         maintenanceMode = maintenanceMode,
                         maintenanceMessage = maintenanceMessage,
-                        githubRepoUrl = githubRepoUrl
+                        githubRepoUrl = githubRepoUrl,
+                        logoImageUrl = logoImageUrl,
+                        primaryColorHex = primaryColorHex,
+                        homeBannerUrl = homeBannerUrl,
+                        customAppName = customAppName
                     )
 
                     if (githubRepoUrl.isNotBlank()) {

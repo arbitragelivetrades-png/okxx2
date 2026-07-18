@@ -29,10 +29,11 @@ private val LightColorScheme = DarkColorScheme // Keep dark mode identical for c
 
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = true, // Force dark theme
-  dynamicColor: Boolean = false, // Disable dynamic material-you colors to preserve branding
+  primaryColor: Color = OkxGreen,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme = DarkColorScheme
+  val colorScheme = DarkColorScheme.copy(
+    primary = primaryColor
+  )
   MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

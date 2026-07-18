@@ -73,9 +73,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                MainAppContainer()
-            }
+            MainAppContainer()
         }
     }
 }
@@ -1671,12 +1669,17 @@ fun MainAppContainer() {
 
     val currentRemoteConfig = updateConfig ?: FirebaseSyncManager.UpdateConfig()
 
-    if (currentRemoteConfig.maintenanceMode) {
-        MaintenanceScreen(message = currentRemoteConfig.maintenanceMessage)
-    } else if (showSplashScreen) {
-        SplashLoadingScreen(config = currentRemoteConfig)
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
+    val dynamicPrimaryColor = remember(currentRemoteConfig.primaryColorHex) {
+        parseColorSafely(currentRemoteConfig.primaryColorHex, OkxGreen)
+    }
+
+    MyApplicationTheme(primaryColor = dynamicPrimaryColor) {
+        if (currentRemoteConfig.maintenanceMode) {
+            MaintenanceScreen(message = currentRemoteConfig.maintenanceMessage)
+        } else if (showSplashScreen) {
+            SplashLoadingScreen(config = currentRemoteConfig)
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1755,7 +1758,8 @@ fun MainAppContainer() {
                                             showAddBalanceDialog = true
                                         }
                                     },
-                                    showMenuButton = true
+                                    showMenuButton = true,
+                                    config = currentRemoteConfig
                                 )
                             }
                         }
@@ -2231,6 +2235,7 @@ fun MainAppContainer() {
             }
         }
     }
+  }
 }
 
 // ------------------------------------------------------------------------
@@ -2565,6 +2570,30 @@ fun DynamicAppLogo(
 ) {
     val type = config.logoType.uppercase().trim()
     when {
+        config.logoImageUrl.isNotBlank() -> {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(config.logoImageUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Dynamic Logo",
+                modifier = modifier,
+                loading = {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = color, strokeWidth = 1.dp, modifier = Modifier.size(12.dp))
+                    }
+                },
+                error = {
+                    androidx.compose.material3.Text(
+                        text = config.customLogoText.ifBlank { "OKX" },
+                        color = color,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
+            )
+        }
         type == "XLAYER" -> {
             XLayerLogo(modifier = modifier)
         }
@@ -3616,7 +3645,7 @@ fun BottomNavigationBar(
             ) {
                 // Tab 1: OKX
                 BottomNavItem(
-                    label = if (config.logoType.uppercase().trim() == "CUSTOM" && config.customLogoText.isNotBlank()) config.customLogoText else "OKX",
+                    label = if (config.customAppName.isNotBlank()) config.customAppName else if (config.logoType.uppercase().trim() == "CUSTOM" && config.customLogoText.isNotBlank()) config.customLogoText else "OKX",
                     isSelected = currentTab == BottomTab.OKX,
                     onClick = { onTabSelected(BottomTab.OKX) },
                     icon = { color -> DynamicAppLogo(color = color, modifier = Modifier.size(20.dp), config = config) },
@@ -4171,7 +4200,8 @@ fun OkxScreenContent(
     onToggleBalance: () -> Unit,
     onDepositClick: () -> Unit,
     onMenuClick: () -> Unit,
-    showMenuButton: Boolean = false
+    showMenuButton: Boolean = false,
+    config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
 ) {
     val scrollState = rememberScrollState()
     var selectedTopTab by remember { mutableStateOf("Exchange") }
@@ -4323,6 +4353,32 @@ fun OkxScreenContent(
                     color = PureBlack,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
+                )
+            }
+        }
+        
+        if (config.homeBannerUrl.isNotBlank()) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkGreyCard)
+            ) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(config.homeBannerUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Promo Banner",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 1.dp, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 )
             }
         }
@@ -7497,6 +7553,21 @@ fun DetailRow(
                 }
             }
         }
+    }
+}
+
+fun parseColorSafely(hex: String, fallback: Color): Color {
+    if (hex.isBlank()) return fallback
+    return try {
+        val cleanHex = hex.trim().removePrefix("#")
+        val colorInt = when (cleanHex.length) {
+            6 -> android.graphics.Color.parseColor("#FF$cleanHex") // Add alpha
+            8 -> android.graphics.Color.parseColor("#$cleanHex")
+            else -> android.graphics.Color.parseColor(hex.trim())
+        }
+        Color(colorInt)
+    } catch (e: Exception) {
+        fallback
     }
 }
 

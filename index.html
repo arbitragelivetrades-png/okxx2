@@ -370,6 +370,23 @@
                                     <label class="block text-xs text-gray-400 mb-1.5 font-medium">Custom Logo Text (Only if 'Custom Text' selected)</label>
                                     <input type="text" id="configCustomLogoText" placeholder="Alpha Exchange" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
                                 </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Custom Logo Image URL (Dynamic Image Logo)</label>
+                                    <input type="text" id="configLogoImageUrl" placeholder="https://raw.githubusercontent.com/.../logo.png" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                    <span class="block text-[10px] text-gray-500 mt-1">Host on your GitHub public repo (like okxx2) to avoid Firebase storage fees!</span>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Primary Accent Color (Hex format, e.g., #FF9900)</label>
+                                    <input type="text" id="configPrimaryColorHex" placeholder="#00E676" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Home Promo Banner Image URL</label>
+                                    <input type="text" id="configHomeBannerUrl" placeholder="https://raw.githubusercontent.com/.../banner.png" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1.5 font-medium">Custom App Name (Overrides "OKX" text)</label>
+                                    <input type="text" id="configCustomAppName" placeholder="MyExchange" class="w-full bg-black border border-darkBorder rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-okxGreen">
+                                </div>
                             </div>
 
                             <!-- Column 2: Maintenance Controls -->
@@ -1030,6 +1047,10 @@
                     document.getElementById('configIsForceUpdate').checked = data.isForceUpdate || false;
                     document.getElementById('configLogoType').value = data.logoType || 'OKX';
                     document.getElementById('configCustomLogoText').value = data.customLogoText || '';
+                    document.getElementById('configLogoImageUrl').value = data.logoImageUrl || '';
+                    document.getElementById('configPrimaryColorHex').value = data.primaryColorHex || '';
+                    document.getElementById('configHomeBannerUrl').value = data.homeBannerUrl || '';
+                    document.getElementById('configCustomAppName').value = data.customAppName || '';
                     document.getElementById('configMaintenanceMode').checked = data.maintenanceMode || false;
                     document.getElementById('configMaintenanceMessage').value = data.maintenanceMessage || '';
                 }
@@ -1075,6 +1096,10 @@
             const isForceUpdate = document.getElementById('configIsForceUpdate').checked;
             const logoType = document.getElementById('configLogoType').value;
             const customLogoText = document.getElementById('configCustomLogoText').value.trim();
+            const logoImageUrl = document.getElementById('configLogoImageUrl').value.trim();
+            const primaryColorHex = document.getElementById('configPrimaryColorHex').value.trim();
+            const homeBannerUrl = document.getElementById('configHomeBannerUrl').value.trim();
+            const customAppName = document.getElementById('configCustomAppName').value.trim();
             const maintenanceMode = document.getElementById('configMaintenanceMode').checked;
             const maintenanceMessage = document.getElementById('configMaintenanceMessage').value.trim();
 
@@ -1084,6 +1109,10 @@
                     isForceUpdate: isForceUpdate,
                     logoType: logoType,
                     customLogoText: customLogoText,
+                    logoImageUrl: logoImageUrl,
+                    primaryColorHex: primaryColorHex,
+                    homeBannerUrl: homeBannerUrl,
+                    customAppName: customAppName,
                     maintenanceMode: maintenanceMode,
                     maintenanceMessage: maintenanceMessage
                 }, { merge: true });
