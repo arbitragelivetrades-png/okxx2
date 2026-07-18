@@ -1648,6 +1648,9 @@ fun MainAppContainer() {
     var showAddBalanceDialog by remember { mutableStateOf(false) }
     var showPasskeySetupDialog by remember { mutableStateOf(false) }
     var updateConfig by remember { mutableStateOf<FirebaseSyncManager.UpdateConfig?>(null) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf(0f) }
+    var downloadErrorMsg by remember { mutableStateOf<String?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -1923,7 +1926,12 @@ fun MainAppContainer() {
             if (showAddBalanceDialog) {
                 AddWithdrawBalanceDialog(
                     onDismiss = { showAddBalanceDialog = false },
-                    viewModel = walletViewModel
+                    viewModel = walletViewModel,
+                    onConfigSaved = {
+                        FirebaseSyncManager.checkAppUpdate(context) { config ->
+                            updateConfig = config
+                        }
+                    }
                 )
             }
 
@@ -1950,7 +1958,7 @@ fun MainAppContainer() {
                 val config = activeConfig
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = {
-                        if (!config.isForceUpdate) {
+                        if (!config.isForceUpdate && !isDownloadingUpdate) {
                             updateConfig = null
                         }
                     },
@@ -1977,41 +1985,153 @@ fun MainAppContainer() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            val notes = config.releaseNotes.ifBlank {
-                                if (config.isForceUpdate) {
-                                    "A critical security and performance update is required to continue using the application."
-                                } else {
-                                    "We have added new features and performance improvements to make your trading experience better."
+                            if (isDownloadingUpdate) {
+                                Text(
+                                    text = "Downloading Update...",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = downloadProgress,
+                                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                                    color = OkxGreen,
+                                    trackColor = Color.Gray.copy(alpha = 0.3f)
+                                )
+                                Text(
+                                    text = "${(downloadProgress * 100).toInt()}%",
+                                    color = OkxGreen,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            } else {
+                                val notes = config.releaseNotes.ifBlank {
+                                    if (config.isForceUpdate) {
+                                        "A critical security and performance update is required to continue using the application."
+                                    } else {
+                                        "We have added new features and performance improvements to make your trading experience better."
+                                    }
+                                }
+                                Text(
+                                    text = notes,
+                                    color = Color.Gray,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                if (downloadErrorMsg != null) {
+                                    Text(
+                                        text = "Download Error: $downloadErrorMsg\nClick Update Now to retry.",
+                                        color = Color.Red,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
                                 }
                             }
-                            Text(
-                                text = notes,
-                                color = Color.Gray,
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            )
                         }
                     },
                     confirmButton = {
-                        Button(
-                            onClick = {
-                                if (config.downloadUrl.isNotBlank()) {
-                                    try {
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(config.downloadUrl))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
+                        if (isDownloadingUpdate) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = OkxGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Button(
+                                onClick = {
+                                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        var connection: java.net.HttpURLConnection? = null
+                                        try {
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isDownloadingUpdate = true
+                                                downloadProgress = 0f
+                                                downloadErrorMsg = null
+                                            }
+                                            
+                                            val destinationFile = java.io.File(context.cacheDir, "app-update.apk")
+                                            if (destinationFile.exists()) {
+                                                destinationFile.delete()
+                                            }
+                                            
+                                            val resolvedUrl = FirebaseSyncManager.getResolvedDownloadUrl(config)
+                                            val url = java.net.URL(resolvedUrl)
+                                            connection = url.openConnection() as java.net.HttpURLConnection
+                                            connection.requestMethod = "GET"
+                                            connection.connectTimeout = 15000
+                                            connection.readTimeout = 15000
+                                            connection.connect()
+                                            
+                                            if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
+                                                throw Exception("HTTP error code: ${connection.responseCode}")
+                                            }
+                                            
+                                            val fileLength = connection.contentLength
+                                            val input = java.io.BufferedInputStream(connection.inputStream)
+                                            val output = java.io.FileOutputStream(destinationFile)
+                                            
+                                            val data = ByteArray(4096)
+                                            var total: Long = 0
+                                            var count: Int
+                                            
+                                            while (input.read(data).also { count = it } != -1) {
+                                                total += count
+                                                if (fileLength > 0) {
+                                                    val progress = total.toFloat() / fileLength.toFloat()
+                                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                        downloadProgress = progress
+                                                    }
+                                                }
+                                                output.write(data, 0, count)
+                                            }
+                                            
+                                            output.flush()
+                                            output.close()
+                                            input.close()
+                                            
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isDownloadingUpdate = false
+                                                try {
+                                                    val authority = "${context.packageName}.fileprovider"
+                                                    val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, destinationFile)
+                                                    val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                                        setDataAndType(uri, "application/vnd.android.package-archive")
+                                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(installIntent)
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("MainActivity", "Error launching APK Installer", e)
+                                                    try {
+                                                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(resolvedUrl)).apply {
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        context.startActivity(browserIntent)
+                                                    } catch (e2: Exception) {
+                                                        downloadErrorMsg = "Failed to open installer: ${e.message}"
+                                                    }
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                isDownloadingUpdate = false
+                                                downloadErrorMsg = e.message ?: "Download failed"
+                                            }
+                                        } finally {
+                                            connection?.disconnect()
+                                        }
                                     }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Update Now", color = Color.Black, fontWeight = FontWeight.Bold)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Update Now", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     },
-                    dismissButton = if (config.isForceUpdate) null else {
+                    dismissButton = if (config.isForceUpdate || isDownloadingUpdate) null else {
                         {
                             TextButton(
                                 onClick = { updateConfig = null },
@@ -4399,7 +4519,8 @@ fun PlaceholderScreenContent(
 @Composable
 fun AddWithdrawBalanceDialog(
     onDismiss: () -> Unit,
-    viewModel: WalletViewModel
+    viewModel: WalletViewModel,
+    onConfigSaved: () -> Unit = {}
 ) {
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val prices by viewModel.prices.collectAsStateWithLifecycle()
@@ -4969,6 +5090,7 @@ fun AddWithdrawBalanceDialog(
                                             }
                                             // Sync all local data in background
                                             FirebaseSyncManager.uploadAllLocalDataToCloud(context, scope)
+                                            onConfigSaved()
                                         } else {
                                             syncStatusMsg = "Error: Could not initialize database with these keys."
                                         }

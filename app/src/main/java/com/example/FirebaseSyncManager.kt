@@ -52,8 +52,23 @@ object FirebaseSyncManager {
         return hasCustom || (DEFAULT_API_KEY.isNotBlank() && DEFAULT_PROJECT_ID.isNotBlank() && DEFAULT_APP_ID.isNotBlank())
     }
 
+    // Reset active memory instance so next initialize() will pick up the new credentials
+    fun resetMemoryInstance(context: Context) {
+        firestore = null
+        balanceListener?.remove()
+        balanceListener = null
+        updateListener?.remove()
+        updateListener = null
+        try {
+            FirebaseApp.getApps(context).firstOrNull { it.name == APP_NAME }?.delete()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting FirebaseApp instance during reset", e)
+        }
+    }
+
     // Save configuration
     fun saveConfig(context: Context, apiKey: String, projectId: String, appId: String) {
+        resetMemoryInstance(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
             .putString(KEY_API_KEY, apiKey.trim())
@@ -66,9 +81,7 @@ object FirebaseSyncManager {
     fun clearConfig(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
-        firestore = null
-        balanceListener?.remove()
-        balanceListener = null
+        resetMemoryInstance(context)
     }
 
     // Get current config values (falls back to built-in credentials)
@@ -98,7 +111,18 @@ object FirebaseSyncManager {
         return try {
             val existingApp = FirebaseApp.getApps(context).firstOrNull { it.name == APP_NAME }
             val app = if (existingApp != null) {
-                existingApp
+                val options = existingApp.options
+                if (options.apiKey != apiKey || options.projectId != projectId || options.applicationId != appId) {
+                    existingApp.delete()
+                    val newOptions = FirebaseOptions.Builder()
+                        .setApiKey(apiKey)
+                        .setProjectId(projectId)
+                        .setApplicationId(appId)
+                        .build()
+                    FirebaseApp.initializeApp(context, newOptions, APP_NAME)
+                } else {
+                    existingApp
+                }
             } else {
                 val options = FirebaseOptions.Builder()
                     .setApiKey(apiKey)
@@ -114,6 +138,19 @@ object FirebaseSyncManager {
             Log.e(TAG, "Error initializing Firebase Firestore dynamically", e)
             false
         }
+    }
+
+    // Helper to get the fully resolved download URL for update APKs
+    fun getResolvedDownloadUrl(config: UpdateConfig): String {
+        var url = config.downloadUrl.trim()
+        if (url.isBlank() || url.lowercase() == "auto" || url.contains("CHANGE_TO_YOUR_GITHUB_USERNAME")) {
+            val githubUrl = config.githubRepoUrl.ifBlank { "https://github.com/arbitragelivetrades/your-repo" }
+            val ownerRepo = getOwnerAndRepo(githubUrl)
+            if (ownerRepo != null) {
+                url = "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app-release.apk"
+            }
+        }
+        return url
     }
 
     // Synchronize current local state to Firebase Firestore (User + Balances)
@@ -311,20 +348,32 @@ object FirebaseSyncManager {
     }
 
     fun fetchGitHubVersionInfo(githubRepoUrl: String, onComplete: (UpdateConfig?) -> Unit) {
-        val rawUrl = parseGitHubRawUrl(githubRepoUrl) ?: return onComplete(null)
+        val ownerRepo = getOwnerAndRepo(githubRepoUrl) ?: return onComplete(null)
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
         
         Thread {
             try {
-                val url = java.net.URL(rawUrl)
-                val connection = url.openConnection() as java.net.HttpURLConnection
+                var branch = "main"
+                var url = java.net.URL("https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app_version.json")
+                var connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
                 
-                if (connection.responseCode == 200) {
+                var responseCode = connection.responseCode
+                if (responseCode == 404) {
+                    branch = "master"
+                    url = java.net.URL("https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/master/app_version.json")
+                    connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    responseCode = connection.responseCode
+                }
+                
+                if (responseCode == 200) {
                     val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
-                    val githubInfo = parseSimpleJson(jsonText, githubRepoUrl)
+                    val githubInfo = parseSimpleJson(jsonText, githubRepoUrl, branch)
                     mainHandler.post {
                         if (githubInfo != null) {
                             onComplete(UpdateConfig(
@@ -365,7 +414,7 @@ object FirebaseSyncManager {
         return "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app_version.json"
     }
 
-    private fun parseSimpleJson(jsonString: String, githubRepoUrl: String): GitHubVersionInfo? {
+    private fun parseSimpleJson(jsonString: String, githubRepoUrl: String, branch: String = "main"): GitHubVersionInfo? {
         try {
             val versionCodeStr = findJsonValue(jsonString, "versionCode") ?: return null
             val versionName = findJsonValue(jsonString, "versionName") ?: "1.0"
@@ -376,7 +425,7 @@ object FirebaseSyncManager {
             if (downloadUrl.isBlank() || downloadUrl.lowercase() == "auto" || downloadUrl.contains("CHANGE_TO_YOUR_GITHUB_USERNAME")) {
                 val ownerRepo = getOwnerAndRepo(githubRepoUrl)
                 if (ownerRepo != null) {
-                    downloadUrl = "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app-release.apk"
+                    downloadUrl = "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/$branch/app-release.apk"
                 }
             }
 
