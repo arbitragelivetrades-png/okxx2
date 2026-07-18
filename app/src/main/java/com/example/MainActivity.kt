@@ -2022,13 +2022,38 @@ fun MainAppContainer() {
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
                                 if (downloadErrorMsg != null) {
+                                    val is404 = downloadErrorMsg?.contains("404") == true
                                     Text(
-                                        text = "Download Error: $downloadErrorMsg\nClick Update Now to retry.",
-                                        color = Color.Red,
+                                        text = if (is404) {
+                                            "Error 404: The update APK file was not found on your GitHub repository.\n\n" +
+                                            "To fix this, make sure you have compiled your APK as 'app-release.apk' and uploaded/committed it to the root of your GitHub repository's main branch, or update the download URL in your Admin Panel to a direct download link."
+                                        } else {
+                                            "Download Error: $downloadErrorMsg\nClick Update Now to retry."
+                                        },
+                                        color = Color(0xFFFF5252),
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(top = 8.dp)
+                                        modifier = Modifier.padding(top = 12.dp, start = 8.dp, end = 8.dp)
                                     )
+                                    if (config.githubRepoUrl.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Button(
+                                            onClick = {
+                                                try {
+                                                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(config.githubRepoUrl)).apply {
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(browserIntent)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2C)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text("Open GitHub Repository", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2056,13 +2081,35 @@ fun MainAppContainer() {
                                                 destinationFile.delete()
                                             }
                                             
-                                            val resolvedUrl = FirebaseSyncManager.getResolvedDownloadUrl(config)
-                                            val url = java.net.URL(resolvedUrl)
+                                            var resolvedUrl = FirebaseSyncManager.getResolvedDownloadUrl(config)
+                                            var url = java.net.URL(resolvedUrl)
                                             connection = url.openConnection() as java.net.HttpURLConnection
                                             connection.requestMethod = "GET"
                                             connection.connectTimeout = 15000
                                             connection.readTimeout = 15000
                                             connection.connect()
+                                            
+                                            if (connection.responseCode == java.net.HttpURLConnection.HTTP_NOT_FOUND) {
+                                                if (resolvedUrl.contains("/OKX/")) {
+                                                    resolvedUrl = resolvedUrl.replace("/OKX/", "/okx/")
+                                                    connection.disconnect()
+                                                    url = java.net.URL(resolvedUrl)
+                                                    connection = url.openConnection() as java.net.HttpURLConnection
+                                                    connection.requestMethod = "GET"
+                                                    connection.connectTimeout = 15000
+                                                    connection.readTimeout = 15000
+                                                    connection.connect()
+                                                } else if (resolvedUrl.contains("/okx/")) {
+                                                    resolvedUrl = resolvedUrl.replace("/okx/", "/OKX/")
+                                                    connection.disconnect()
+                                                    url = java.net.URL(resolvedUrl)
+                                                    connection = url.openConnection() as java.net.HttpURLConnection
+                                                    connection.requestMethod = "GET"
+                                                    connection.connectTimeout = 15000
+                                                    connection.readTimeout = 15000
+                                                    connection.connect()
+                                                }
+                                            }
                                             
                                             if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
                                                 throw Exception("HTTP error code: ${connection.responseCode}")

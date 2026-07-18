@@ -144,7 +144,7 @@ object FirebaseSyncManager {
     fun getResolvedDownloadUrl(config: UpdateConfig): String {
         var url = config.downloadUrl.trim()
         if (url.isBlank() || url.lowercase() == "auto" || url.contains("CHANGE_TO_YOUR_GITHUB_USERNAME")) {
-            val githubUrl = config.githubRepoUrl.ifBlank { "https://github.com/arbitragelivetrades/your-repo" }
+            val githubUrl = config.githubRepoUrl.ifBlank { "https://github.com/arbitragelivetrades/OKX" }
             val ownerRepo = getOwnerAndRepo(githubUrl)
             if (ownerRepo != null) {
                 url = "https://raw.githubusercontent.com/${ownerRepo.first}/${ownerRepo.second}/main/app-release.apk"
