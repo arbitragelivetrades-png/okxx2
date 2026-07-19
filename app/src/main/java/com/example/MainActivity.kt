@@ -1958,7 +1958,20 @@ fun MainAppContainer() {
 
             // Real-time Mobile Update Dialog Prompt
             val activeConfig = updateConfig
-            if (activeConfig != null && activeConfig.latestVersionCode > FirebaseSyncManager.CURRENT_VERSION_CODE) {
+            val currentVersionCode = remember(context) {
+                try {
+                    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        packageInfo.longVersionCode.toInt()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        packageInfo.versionCode
+                    }
+                } catch (e: Exception) {
+                    1
+                }
+            }
+            if (activeConfig != null && activeConfig.latestVersionCode > currentVersionCode) {
                 val config = activeConfig
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = {
