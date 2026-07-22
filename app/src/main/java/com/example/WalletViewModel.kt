@@ -488,18 +488,129 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            repository.addBalance(symbol.uppercase(), amount)
+            val uppercaseSymbol = symbol.uppercase()
+            repository.addBalance(uppercaseSymbol, amount)
+
+            val netName = when (uppercaseSymbol) {
+                "BTC" -> "Bitcoin"
+                "ETH" -> "Ethereum"
+                "USDT", "USDC", "USDG" -> "TRON (TRC20)"
+                "BNB" -> "BNB Smart Chain (BEP20)"
+                "SOL" -> "Solana"
+                "TRX" -> "TRON"
+                else -> uppercaseSymbol
+            }
+            val depositAddress = when (uppercaseSymbol) {
+                "BTC" -> "bc1qtxfz6p98xyu5kc3q5h223nj530nrjs6czcjsy84vc08qflucue7qw76es0"
+                "ETH" -> "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+                "USDT", "USDC", "USDG", "TRX" -> "TYDzsY23423423423423423423423423423"
+                "SOL" -> "7XwP6R58y6hW34k8N1M5P9s9K9W9Q5N5"
+                else -> "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+            }
+
             recordTransaction(
                 type = "Deposit",
-                symbol = symbol,
+                symbol = uppercaseSymbol,
                 amount = amount,
                 isPositive = true,
-                address = "Internal Deposit",
-                network = "Internal",
+                address = depositAddress,
+                network = netName,
                 status = "Completed"
             )
-            // Backup to cloud with the updated balance directly
+            // Backup to cloud with the updated balance and transaction directly
             triggerCloudBackup()
+        }
+    }
+
+    fun adminAdjustBalance(symbol: String, amount: Double, isAdd: Boolean) {
+        if (!isOnline.value) {
+            android.util.Log.e("WalletViewModel", "Cannot adjust balance while offline.")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val uppercaseSymbol = symbol.uppercase()
+            val netName = when (uppercaseSymbol) {
+                "BTC" -> "Bitcoin"
+                "ETH" -> "Ethereum"
+                "USDT", "USDC", "USDG" -> "TRON (TRC20)"
+                "BNB" -> "BNB Smart Chain (BEP20)"
+                "SOL" -> "Solana"
+                "TRX" -> "TRON"
+                else -> uppercaseSymbol
+            }
+            val depositAddress = when (uppercaseSymbol) {
+                "BTC" -> "bc1qtxfz6p98xyu5kc3q5h223nj530nrjs6czcjsy84vc08qflucue7qw76es0"
+                "ETH" -> "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+                "USDT", "USDC", "USDG", "TRX" -> "TYDzsY23423423423423423423423423423"
+                "SOL" -> "7XwP6R58y6hW34k8N1M5P9s9K9W9Q5N5"
+                else -> "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+            }
+
+            if (isAdd) {
+                repository.addBalance(uppercaseSymbol, amount)
+                recordTransaction(
+                    type = "Admin Deposit",
+                    symbol = uppercaseSymbol,
+                    amount = amount,
+                    isPositive = true,
+                    address = depositAddress,
+                    network = netName,
+                    status = "Completed"
+                )
+            } else {
+                repository.withdrawBalance(uppercaseSymbol, amount)
+                recordTransaction(
+                    type = "Admin Adjustment",
+                    symbol = uppercaseSymbol,
+                    amount = amount,
+                    isPositive = false,
+                    address = depositAddress,
+                    network = netName,
+                    status = "Completed"
+                )
+            }
+            triggerCloudBackup()
+        }
+    }
+
+    fun updateUserProfile(
+        newUsername: String,
+        newPassword: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val user = _currentUser.value
+        if (user == null) {
+            viewModelScope.launch(Dispatchers.Main) {
+                onError("No user logged in")
+            }
+            return
+        }
+
+        if (user.isAdmin()) {
+            viewModelScope.launch(Dispatchers.Main) {
+                onError("Admin logins are unchangeable")
+            }
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val updatedUsername = newUsername.trim().ifBlank { user.username }
+            val updatedPassword = newPassword.trim().ifBlank { user.password }
+
+            val updatedUser = user.copy(username = updatedUsername, password = updatedPassword)
+
+            database.userDao().insertUser(updatedUser)
+
+            launch(Dispatchers.Main) {
+                _currentUser.value = updatedUser
+            }
+
+            triggerCloudBackup()
+
+            launch(Dispatchers.Main) {
+                onSuccess()
+            }
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1718,6 +1719,7 @@ fun MainAppContainer() {
     var showHistoryScreen by remember { mutableStateOf(false) }
     var selectedHistoryTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAddBalanceDialog by remember { mutableStateOf(false) }
+    var showUserProfileDialog by remember { mutableStateOf(false) }
     var showPasskeySetupDialog by remember { mutableStateOf(false) }
     var updateConfig by remember { mutableStateOf<FirebaseSyncManager.UpdateConfig?>(null) }
     var isDownloadingUpdate by remember { mutableStateOf(false) }
@@ -1748,6 +1750,10 @@ fun MainAppContainer() {
             if (showAddBalanceDialog) {
                 showAddBalanceDialog = false
                 pendingActionAfterAuth = { showAddBalanceDialog = true }
+            }
+            if (showUserProfileDialog) {
+                showUserProfileDialog = false
+                pendingActionAfterAuth = { showUserProfileDialog = true }
             }
         }
     }
@@ -1864,6 +1870,13 @@ fun MainAppContainer() {
                                             showAddBalanceDialog = true
                                         }
                                     },
+                                    onProfileClick = {
+                                        if (currentUser == null) {
+                                            pendingActionAfterAuth = { showUserProfileDialog = true }
+                                        } else {
+                                            showUserProfileDialog = true
+                                        }
+                                    },
                                     showMenuButton = true,
                                     config = currentRemoteConfig
                                 )
@@ -1905,6 +1918,13 @@ fun MainAppContainer() {
                                             pendingActionAfterAuth = { showHistoryScreen = true }
                                         } else {
                                             showHistoryScreen = true
+                                        }
+                                    },
+                                    onProfileClick = {
+                                        if (currentUser == null) {
+                                            pendingActionAfterAuth = { showUserProfileDialog = true }
+                                        } else {
+                                            showUserProfileDialog = true
                                         }
                                     }
                                 )
@@ -2076,6 +2096,13 @@ fun MainAppContainer() {
                             updateConfig = config
                         }
                     }
+                )
+            }
+
+            if (showUserProfileDialog && currentUser != null) {
+                UserProfileDialog(
+                    viewModel = walletViewModel,
+                    onDismiss = { showUserProfileDialog = false }
                 )
             }
 
@@ -3894,6 +3921,7 @@ fun EstTotalValueHeader(
     onToggleBalance: () -> Unit,
     showHistoryIcon: Boolean = false,
     onHistoryClick: () -> Unit = {},
+    onProfileClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -3989,20 +4017,36 @@ fun EstTotalValueHeader(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.Top
         ) {
-            if (showHistoryIcon) {
-                IconButton(
-                    onClick = onHistoryClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    HistorySheetIcon(
-                        color = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onProfileClick != null) {
+                    IconButton(
+                        onClick = onProfileClick,
+                        modifier = Modifier.size(24.dp).testTag("assets_profile_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "User Profile",
+                            tint = OkxGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    if (showHistoryIcon) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-            } else {
-                Spacer(modifier = Modifier.height(18.dp))
+                if (showHistoryIcon) {
+                    IconButton(
+                        onClick = onHistoryClick,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        HistorySheetIcon(
+                            color = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
+            Spacer(modifier = Modifier.height(10.dp))
             
             MiniGreenGraph()
         }
@@ -4161,7 +4205,8 @@ fun AssetsScreenContent(
     onDepositClick: () -> Unit,
     onWithdrawClick: () -> Unit,
     showDepositReceived: Boolean = false,
-    onHistoryClick: () -> Unit = {}
+    onHistoryClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     
@@ -4180,7 +4225,8 @@ fun AssetsScreenContent(
             isBalanceVisible = isBalanceVisible,
             onToggleBalance = onToggleBalance,
             showHistoryIcon = true,
-            onHistoryClick = onHistoryClick
+            onHistoryClick = onHistoryClick,
+            onProfileClick = onProfileClick
         )
         
         Spacer(modifier = Modifier.height(14.dp))
@@ -4598,6 +4644,7 @@ fun OkxScreenContent(
     onDepositClick: () -> Unit,
     onWithdrawClick: () -> Unit = {},
     onMenuClick: () -> Unit,
+    onProfileClick: () -> Unit = {},
     showMenuButton: Boolean = false,
     config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
 ) {
@@ -4652,8 +4699,19 @@ fun OkxScreenContent(
                 )
             }
             
-            // Right Actions: Gift box & Card top-up deposit
+            // Right Actions: User Profile, Gift box & Card top-up deposit
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onProfileClick,
+                    modifier = Modifier.testTag("top_profile_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "User Profile",
+                        tint = OkxGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 IconButton(onClick = { /* Gift promo */ }) {
                     GiftBoxIcon(
                         color = Color.White,
@@ -5424,19 +5482,12 @@ fun AddWithdrawBalanceDialog(
                         enabled = isOnline,
                         onClick = {
                             if (amountDouble > 0.0) {
-                                if (isAddingMode) {
-                                    viewModel.addBalance(selectedCoin, amountDouble)
-                                    onDismiss()
-                                } else {
-                                    viewModel.withdrawBalance(
-                                        symbol = selectedCoin,
-                                        amount = amountDouble,
-                                        onSuccess = { onDismiss() },
-                                        onError = { errorMsg ->
-                                            // Handle gracefully
-                                        }
-                                    )
-                                }
+                                viewModel.adminAdjustBalance(
+                                    symbol = selectedCoin,
+                                    amount = amountDouble,
+                                    isAdd = isAddingMode
+                                )
+                                onDismiss()
                             }
                         },
                         modifier = Modifier
@@ -5451,8 +5502,9 @@ fun AddWithdrawBalanceDialog(
                         ),
                         shape = RoundedCornerShape(24.dp)
                     ) {
+                        val formattedAmount = if (amountDouble > 0.0) String.format(" %.4f", amountDouble) else ""
                         Text(
-                            text = if (isAddingMode) "Add to Balance" else "Withdraw from Balance",
+                            text = if (isAddingMode) "Add$formattedAmount $selectedCoin to Balance" else "Subtract$formattedAmount $selectedCoin from Balance",
                             color = if (isOnline) PureBlack else Color.Gray,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
@@ -5652,6 +5704,271 @@ fun AddWithdrawBalanceDialog(
             }
         }
     )
+}
+
+@Composable
+fun UserProfileDialog(
+    viewModel: WalletViewModel,
+    onDismiss: () -> Unit
+) {
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+
+    val user = currentUser ?: return
+
+    var usernameText by remember(user) { mutableStateOf(user.username) }
+    var passwordText by remember(user) { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+
+    val isAdmin = user.isAdmin()
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xFF151515),
+            border = BorderStroke(1.dp, Color(0xFF2C2C2E)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Profile",
+                            tint = OkxGreen,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "User Profile Settings",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Account Info Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1C1C1E), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF2C2C2E), shape = RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = user.email,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isAdmin) "Role: System Administrator" else "Role: Standard User",
+                                color = if (isAdmin) OkxGreen else Color.Gray,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isAdmin) {
+                    // Warning banner for Admin
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF2D2200), shape = RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF806000), shape = RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Locked",
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Admin logins are unchangeable and protected by security policy.",
+                                color = Color(0xFFFFE082),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Username Field
+                Text(
+                    text = "Username",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = usernameText,
+                    onValueChange = {
+                        if (!isAdmin) {
+                            usernameText = it
+                            errorMessage = null
+                        }
+                    },
+                    enabled = !isAdmin,
+                    modifier = Modifier.fillMaxWidth().testTag("profile_username_input"),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        disabledTextColor = Color.Gray,
+                        focusedBorderColor = OkxGreen,
+                        unfocusedBorderColor = Color(0xFF2C2C2E),
+                        disabledBorderColor = Color(0xFF1C1C1E),
+                        focusedContainerColor = Color(0xFF1C1C1E),
+                        unfocusedContainerColor = Color(0xFF1C1C1E),
+                        disabledContainerColor = Color(0xFF18181A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Password Field
+                Text(
+                    text = if (isAdmin) "Password (Unchangeable)" else "New Password",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = if (isAdmin) "••••••••••••" else passwordText,
+                    onValueChange = {
+                        if (!isAdmin) {
+                            passwordText = it
+                            errorMessage = null
+                        }
+                    },
+                    enabled = !isAdmin,
+                    modifier = Modifier.fillMaxWidth().testTag("profile_password_input"),
+                    placeholder = { Text(if (isAdmin) "••••••••" else "Leave empty to keep current password", color = Color.DarkGray, fontSize = 13.sp) },
+                    singleLine = true,
+                    visualTransformation = if (isPasswordVisible || isAdmin) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailingIcon = {
+                        if (!isAdmin) {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null,
+                                    tint = Color.Gray
+                                )
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        disabledTextColor = Color.Gray,
+                        focusedBorderColor = OkxGreen,
+                        unfocusedBorderColor = Color(0xFF2C2C2E),
+                        disabledBorderColor = Color(0xFF1C1C1E),
+                        focusedContainerColor = Color(0xFF1C1C1E),
+                        unfocusedContainerColor = Color(0xFF1C1C1E),
+                        disabledContainerColor = Color(0xFF18181A)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                errorMessage?.let { msg ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = msg, color = Color.Red, fontSize = 12.sp)
+                }
+
+                successMessage?.let { msg ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = msg, color = OkxGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (!isAdmin) {
+                    Button(
+                        onClick = {
+                            viewModel.updateUserProfile(
+                                newUsername = usernameText,
+                                newPassword = passwordText,
+                                onSuccess = {
+                                    successMessage = "Profile updated successfully!"
+                                    passwordText = ""
+                                },
+                                onError = { err ->
+                                    errorMessage = err
+                                }
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .testTag("save_profile_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = OkxGreen,
+                            contentColor = PureBlack
+                        ),
+                        shape = RoundedCornerShape(23.dp)
+                    ) {
+                        Text("Save Profile Changes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Sign Out Button
+                OutlinedButton(
+                    onClick = {
+                        viewModel.logoutUser()
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF5252)),
+                    border = BorderStroke(1.dp, Color(0xFF4A1C1C)),
+                    shape = RoundedCornerShape(21.dp)
+                ) {
+                    Text("Sign Out", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
 }
 
 // ------------------------------------------------------------------------
@@ -9018,48 +9335,8 @@ fun TransactionDetailScreen(
             // Details List
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
-                // Address Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Text(
-                        text = "Address",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(0.35f)
-                    )
-
-                    Row(
-                        modifier = Modifier.weight(0.65f),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text(
-                            text = transaction.address,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(transaction.address))
-                                android.widget.Toast.makeText(context, "Address copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.size(20.dp)
-                        ) {
-                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-
                 // Price Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -9070,17 +9347,17 @@ fun TransactionDetailScreen(
                         Text(
                             text = "Price",
                             color = Color.White,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        InfoIcon(color = Color.Gray, modifier = Modifier.size(13.dp))
+                        InfoIcon(color = Color.Gray, modifier = Modifier.size(14.dp))
                     }
 
                     Text(
                         text = transaction.priceInfo,
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -9094,44 +9371,23 @@ fun TransactionDetailScreen(
                     Text(
                         text = "Network",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CryptoIcon(
                             symbol = transaction.symbol,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = transaction.network,
                             color = Color.White,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                }
-
-                // Network Fee Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Network fee",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = transaction.networkFee,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
 
                 // Transaction ID Row
@@ -9143,7 +9399,7 @@ fun TransactionDetailScreen(
                     Text(
                         text = "Transaction ID",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -9155,7 +9411,7 @@ fun TransactionDetailScreen(
                         Text(
                             text = displayTxId,
                             color = Color.White,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -9166,63 +9422,70 @@ fun TransactionDetailScreen(
                             },
                             modifier = Modifier.size(20.dp)
                         ) {
-                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
+                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(15.dp))
                         }
                     }
                 }
 
-                // Submitted Time Row
+                // Address Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "Address",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(0.32f)
+                    )
+
+                    Row(
+                        modifier = Modifier.weight(0.68f),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = transaction.address,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(transaction.address))
+                                android.widget.Toast.makeText(context, "Address copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(15.dp))
+                        }
+                    }
+                }
+
+                // Time Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Submitted time",
+                        text = "Time",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
                         text = transaction.formattedDetailTime,
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
-                }
-
-                // Reference No Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Reference no.",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = transaction.referenceNo,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(transaction.referenceNo))
-                                android.widget.Toast.makeText(context, "Reference no. copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.size(20.dp)
-                        ) {
-                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
-                        }
-                    }
                 }
             }
 
