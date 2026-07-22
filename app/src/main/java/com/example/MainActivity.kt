@@ -1870,13 +1870,6 @@ fun MainAppContainer() {
                                             showAddBalanceDialog = true
                                         }
                                     },
-                                    onProfileClick = {
-                                        if (currentUser == null) {
-                                            pendingActionAfterAuth = { showUserProfileDialog = true }
-                                        } else {
-                                            showUserProfileDialog = true
-                                        }
-                                    },
                                     showMenuButton = true,
                                     config = currentRemoteConfig
                                 )
@@ -1918,13 +1911,6 @@ fun MainAppContainer() {
                                             pendingActionAfterAuth = { showHistoryScreen = true }
                                         } else {
                                             showHistoryScreen = true
-                                        }
-                                    },
-                                    onProfileClick = {
-                                        if (currentUser == null) {
-                                            pendingActionAfterAuth = { showUserProfileDialog = true }
-                                        } else {
-                                            showUserProfileDialog = true
                                         }
                                     }
                                 )
@@ -3921,7 +3907,6 @@ fun EstTotalValueHeader(
     onToggleBalance: () -> Unit,
     showHistoryIcon: Boolean = false,
     onHistoryClick: () -> Unit = {},
-    onProfileClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -4017,36 +4002,20 @@ fun EstTotalValueHeader(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.Top
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onProfileClick != null) {
-                    IconButton(
-                        onClick = onProfileClick,
-                        modifier = Modifier.size(24.dp).testTag("assets_profile_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "User Profile",
-                            tint = OkxGreen,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    if (showHistoryIcon) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
+            if (showHistoryIcon) {
+                IconButton(
+                    onClick = onHistoryClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    HistorySheetIcon(
+                        color = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-                if (showHistoryIcon) {
-                    IconButton(
-                        onClick = onHistoryClick,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        HistorySheetIcon(
-                            color = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+            } else {
+                Spacer(modifier = Modifier.height(18.dp))
             }
-            Spacer(modifier = Modifier.height(10.dp))
             
             MiniGreenGraph()
         }
@@ -4205,8 +4174,7 @@ fun AssetsScreenContent(
     onDepositClick: () -> Unit,
     onWithdrawClick: () -> Unit,
     showDepositReceived: Boolean = false,
-    onHistoryClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onHistoryClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     
@@ -4225,8 +4193,7 @@ fun AssetsScreenContent(
             isBalanceVisible = isBalanceVisible,
             onToggleBalance = onToggleBalance,
             showHistoryIcon = true,
-            onHistoryClick = onHistoryClick,
-            onProfileClick = onProfileClick
+            onHistoryClick = onHistoryClick
         )
         
         Spacer(modifier = Modifier.height(14.dp))
@@ -4644,7 +4611,6 @@ fun OkxScreenContent(
     onDepositClick: () -> Unit,
     onWithdrawClick: () -> Unit = {},
     onMenuClick: () -> Unit,
-    onProfileClick: () -> Unit = {},
     showMenuButton: Boolean = false,
     config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
 ) {
@@ -4699,19 +4665,8 @@ fun OkxScreenContent(
                 )
             }
             
-            // Right Actions: User Profile, Gift box & Card top-up deposit
+            // Right Actions: Gift box & Card top-up deposit
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onProfileClick,
-                    modifier = Modifier.testTag("top_profile_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "User Profile",
-                        tint = OkxGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
                 IconButton(onClick = { /* Gift promo */ }) {
                     GiftBoxIcon(
                         color = Color.White,
@@ -5197,23 +5152,37 @@ fun AddWithdrawBalanceDialog(
                                 fontSize = 11.sp
                             )
                         }
-                        TextButton(
-                            onClick = {
-                                viewModel.logoutUser()
-                                onDismiss()
-                            },
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red),
-                            modifier = Modifier.height(32.dp).testTag("auth_logout_button"),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text("Sign Out", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (user.isAdmin()) {
+                                TextButton(
+                                    onClick = { activeTab = "Login" },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = OkxGreen),
+                                    modifier = Modifier.height(32.dp).testTag("edit_login_button"),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit Login", tint = OkxGreen, modifier = Modifier.size(13.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Login", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            TextButton(
+                                onClick = {
+                                    viewModel.logoutUser()
+                                    onDismiss()
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red),
+                                modifier = Modifier.height(32.dp).testTag("auth_logout_button"),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                            ) {
+                                Text("Sign Out", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Tab Selector for Adjust Balance vs Cloud Sync - Visible only to admin
+                // Tab Selector for Adjust Balance vs Cloud Sync vs Admin Login - Visible only to admin
                 if (isAdmin) {
                     Row(
                         modifier = Modifier
@@ -5234,7 +5203,7 @@ fun AddWithdrawBalanceDialog(
                             Text(
                                 text = "Adjust Balance",
                                 color = if (currentActiveTab == "Adjust") OkxGreen else Color.Gray,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -5250,7 +5219,23 @@ fun AddWithdrawBalanceDialog(
                             Text(
                                 text = "Cloud DB Sync",
                                 color = if (currentActiveTab == "Sync") OkxGreen else Color.Gray,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (currentActiveTab == "Login") Color(0xFF2C2C2E) else Color.Transparent)
+                                .clickable { activeTab = "Login" }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Admin Login",
+                                color = if (currentActiveTab == "Login") OkxGreen else Color.Gray,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -5510,7 +5495,7 @@ fun AddWithdrawBalanceDialog(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                } else {
+                } else if (currentActiveTab == "Sync") {
                     // Firebase Cloud Sync Setup Form
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val scope = rememberCoroutineScope()
@@ -5700,6 +5685,125 @@ fun AddWithdrawBalanceDialog(
                             }
                         }
                     }
+                } else if (currentActiveTab == "Login") {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    var newUsername by remember(currentUser) { mutableStateOf(currentUser?.username ?: "") }
+                    var newPassword by remember { mutableStateOf("") }
+                    var profileError by remember { mutableStateOf<String?>(null) }
+                    var profileSuccess by remember { mutableStateOf<String?>(null) }
+                    var isPasswordVisible by remember { mutableStateOf(false) }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = "Admin Username",
+                            color = MutedText,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = newUsername,
+                            onValueChange = {
+                                newUsername = it
+                                profileError = null
+                                profileSuccess = null
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("admin_username_input"),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = OkxGreen,
+                                unfocusedBorderColor = Color(0xFF2C2C2E),
+                                focusedContainerColor = Color(0xFF1C1C1E),
+                                unfocusedContainerColor = Color(0xFF1C1C1E)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "New Password",
+                            color = MutedText,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = {
+                                newPassword = it
+                                profileError = null
+                                profileSuccess = null
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("admin_password_input"),
+                            placeholder = { Text("Leave blank to keep current password", color = Color.DarkGray, fontSize = 12.sp) },
+                            singleLine = true,
+                            visualTransformation = if (isPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = Color.Gray
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = OkxGreen,
+                                unfocusedBorderColor = Color(0xFF2C2C2E),
+                                focusedContainerColor = Color(0xFF1C1C1E),
+                                unfocusedContainerColor = Color(0xFF1C1C1E)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        profileError?.let { msg ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = msg, color = Color.Red, fontSize = 12.sp)
+                        }
+
+                        profileSuccess?.let { msg ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = msg, color = OkxGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                viewModel.updateUserProfile(
+                                    newUsername = newUsername,
+                                    newPassword = newPassword,
+                                    onSuccess = {
+                                        profileSuccess = "Admin login details updated successfully!"
+                                        newPassword = ""
+                                    },
+                                    onError = { err ->
+                                        profileError = err
+                                    }
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("save_admin_login_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = OkxGreen,
+                                contentColor = PureBlack
+                            ),
+                            shape = RoundedCornerShape(22.dp)
+                        ) {
+                            Text("Update Admin Login", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
                 }
             }
         }
@@ -5799,34 +5903,6 @@ fun UserProfileDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (isAdmin) {
-                    // Warning banner for Admin
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF2D2200), shape = RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFF806000), shape = RoundedCornerShape(12.dp))
-                            .padding(12.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Locked",
-                                tint = Color(0xFFFFD700),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Admin logins are unchangeable and protected by security policy.",
-                                color = Color(0xFFFFE082),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
                 // Username Field
                 Text(
                     text = "Username",
@@ -5838,24 +5914,18 @@ fun UserProfileDialog(
                 OutlinedTextField(
                     value = usernameText,
                     onValueChange = {
-                        if (!isAdmin) {
-                            usernameText = it
-                            errorMessage = null
-                        }
+                        usernameText = it
+                        errorMessage = null
                     },
-                    enabled = !isAdmin,
                     modifier = Modifier.fillMaxWidth().testTag("profile_username_input"),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        disabledTextColor = Color.Gray,
                         focusedBorderColor = OkxGreen,
                         unfocusedBorderColor = Color(0xFF2C2C2E),
-                        disabledBorderColor = Color(0xFF1C1C1E),
                         focusedContainerColor = Color(0xFF1C1C1E),
-                        unfocusedContainerColor = Color(0xFF1C1C1E),
-                        disabledContainerColor = Color(0xFF18181A)
+                        unfocusedContainerColor = Color(0xFF1C1C1E)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -5864,46 +5934,38 @@ fun UserProfileDialog(
 
                 // Password Field
                 Text(
-                    text = if (isAdmin) "Password (Unchangeable)" else "New Password",
+                    text = "New Password",
                     color = Color.Gray,
                     fontSize = 12.sp,
                     modifier = Modifier.align(Alignment.Start)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 OutlinedTextField(
-                    value = if (isAdmin) "••••••••••••" else passwordText,
+                    value = passwordText,
                     onValueChange = {
-                        if (!isAdmin) {
-                            passwordText = it
-                            errorMessage = null
-                        }
+                        passwordText = it
+                        errorMessage = null
                     },
-                    enabled = !isAdmin,
                     modifier = Modifier.fillMaxWidth().testTag("profile_password_input"),
-                    placeholder = { Text(if (isAdmin) "••••••••" else "Leave empty to keep current password", color = Color.DarkGray, fontSize = 13.sp) },
+                    placeholder = { Text("Leave empty to keep current password", color = Color.DarkGray, fontSize = 13.sp) },
                     singleLine = true,
-                    visualTransformation = if (isPasswordVisible || isAdmin) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    visualTransformation = if (isPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     trailingIcon = {
-                        if (!isAdmin) {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                Icon(
-                                    imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null,
-                                    tint = Color.Gray
-                                )
-                            }
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(
+                                imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = Color.Gray
+                            )
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        disabledTextColor = Color.Gray,
                         focusedBorderColor = OkxGreen,
                         unfocusedBorderColor = Color(0xFF2C2C2E),
-                        disabledBorderColor = Color(0xFF1C1C1E),
                         focusedContainerColor = Color(0xFF1C1C1E),
-                        unfocusedContainerColor = Color(0xFF1C1C1E),
-                        disabledContainerColor = Color(0xFF18181A)
+                        unfocusedContainerColor = Color(0xFF1C1C1E)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -5920,36 +5982,34 @@ fun UserProfileDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                if (!isAdmin) {
-                    Button(
-                        onClick = {
-                            viewModel.updateUserProfile(
-                                newUsername = usernameText,
-                                newPassword = passwordText,
-                                onSuccess = {
-                                    successMessage = "Profile updated successfully!"
-                                    passwordText = ""
-                                },
-                                onError = { err ->
-                                    errorMessage = err
-                                }
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .testTag("save_profile_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = OkxGreen,
-                            contentColor = PureBlack
-                        ),
-                        shape = RoundedCornerShape(23.dp)
-                    ) {
-                        Text("Save Profile Changes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        viewModel.updateUserProfile(
+                            newUsername = usernameText,
+                            newPassword = passwordText,
+                            onSuccess = {
+                                successMessage = "Profile updated successfully!"
+                                passwordText = ""
+                            },
+                            onError = { err ->
+                                errorMessage = err
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .testTag("save_profile_button"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = OkxGreen,
+                        contentColor = PureBlack
+                    ),
+                    shape = RoundedCornerShape(23.dp)
+                ) {
+                    Text("Save Profile Changes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Sign Out Button
                 OutlinedButton(

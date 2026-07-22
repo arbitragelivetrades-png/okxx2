@@ -587,13 +587,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        if (user.isAdmin()) {
-            viewModelScope.launch(Dispatchers.Main) {
-                onError("Admin logins are unchangeable")
-            }
-            return
-        }
-
         viewModelScope.launch(Dispatchers.IO) {
             val updatedUsername = newUsername.trim().ifBlank { user.username }
             val updatedPassword = newPassword.trim().ifBlank { user.password }
