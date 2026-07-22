@@ -101,7 +101,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         // Load persisted user session if any with Cloud Firestore backup
         viewModelScope.launch(Dispatchers.IO) {
             val prefs = application.getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
-            val savedEmail = prefs.getString("logged_in_user_email", null)
+            val savedEmail = prefs.getString("logged_in_user_email", null)?.lowercase()?.trim()
             if (savedEmail != null) {
                 android.util.Log.d("WalletViewModel", "Found saved email session: $savedEmail. Checking database...")
                 // First, check local database
@@ -130,11 +130,22 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     android.util.Log.d("WalletViewModel", "User $savedEmail found locally. Syncing with Cloud Firestore...")
                     val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(application, savedEmail)
                     if (cloudData != null) {
-                        // Update local user details while preserving password if cloud password is blank
-                        val effectivePassword = cloudData.user.password.ifBlank { user.password }
-                        val syncedUser = cloudData.user.copy(password = effectivePassword)
+                        // Update local user details while strictly PRESERVING local password if cloud password is blank
+                        val effectivePassword = if (cloudData.user.password.isNotBlank()) cloudData.user.password.trim() else user.password.trim()
+                        val syncedUser = cloudData.user.copy(email = savedEmail, password = effectivePassword)
                         database.userDao().insertUser(syncedUser)
                         user = syncedUser
+
+                        // If cloud password was blank, repair cloud document with local non-blank password!
+                        if (cloudData.user.password.isBlank() && effectivePassword.isNotBlank()) {
+                            FirebaseSyncManager.syncUserToCloud(
+                                context = application,
+                                user = syncedUser,
+                                balances = cloudData.balances,
+                                transactions = cloudData.transactions
+                            )
+                        }
+
                         // Sync their balances
                         cloudData.balances.forEach { (symbol, amount) ->
                             repository.setBalance(symbol, amount)
@@ -673,9 +684,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun registerUser(user: User, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val cleanEmail = user.email.trim()
+            val cleanEmail = user.email.lowercase().trim()
             val cleanPassword = user.password.trim()
             val cleanUser = user.copy(email = cleanEmail, password = cleanPassword)
+
+            if (cleanEmail.isBlank() || cleanPassword.isBlank()) {
+                launch(Dispatchers.Main) {
+                    onError("Email and password cannot be empty")
+                }
+                return@launch
+            }
 
             val localExisting = database.userDao().getUserByEmail(cleanEmail)
             if (localExisting != null) {
@@ -712,43 +730,92 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loginUser(email: String, password: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val cleanEmail = email.trim()
+            val cleanEmail = email.lowercase().trim()
             val cleanPassword = password.trim()
+
+            if (cleanEmail.isBlank() || cleanPassword.isBlank()) {
+                launch(Dispatchers.Main) {
+                    onError("Email and password cannot be empty")
+                }
+                return@launch
+            }
 
             // 1. Try local check first
             var user = database.userDao().getUserByEmail(cleanEmail)
-            var isValid = (user != null && user.password.trim() == cleanPassword)
+            val localPasswordMatches = (user != null && user.password.trim() == cleanPassword)
+            var isValid = localPasswordMatches
 
-            // 2. If not valid locally, try cloud check
-            if (!isValid) {
-                val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), cleanEmail)
-                if (cloudData != null) {
-                    val cloudUser = cloudData.user
-                    val cloudPass = cloudUser.password.trim()
+            // 2. Fetch cloud data to verify / restore
+            var cloudData: FirebaseSyncManager.CloudUserData? = null
+            var cloudCheckAttempted = false
+            try {
+                cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), cleanEmail)
+                cloudCheckAttempted = true
+            } catch (e: Exception) {
+                android.util.Log.e("WalletViewModel", "Error checking cloud user during login", e)
+            }
 
-                    // Check if cloud password matches OR if local password matches
-                    if (cloudPass == cleanPassword || (user != null && user.password.trim() == cleanPassword)) {
-                        isValid = true
-                        val effectivePassword = if (cloudPass.isNotBlank()) cloudPass else (user?.password?.trim() ?: cleanPassword)
-                        user = cloudUser.copy(password = effectivePassword)
-                        
-                        // Cache user locally
-                        database.userDao().insertUser(user!!)
-                        // Restore balances
-                        cloudData.balances.forEach { (symbol, amount) ->
-                            repository.setBalance(symbol, amount)
-                        }
-                        // Restore transactions
-                        if (cloudData.transactions.isNotEmpty()) {
-                            repository.seedTransactions(cloudData.transactions)
-                        }
+            if (cloudData != null) {
+                val cloudUser = cloudData.user
+                val cloudPass = cloudUser.password.trim()
+
+                // Password matches if:
+                // a) cloud pass matches entered password
+                // b) local pass matches entered password
+                // c) cloud pass is blank (meaning account existed/synced without password, so accept entered password and repair cloud)
+                val cloudPassMatches = (cloudPass == cleanPassword)
+                val passIsBlankInCloud = cloudPass.isBlank()
+
+                if (cloudPassMatches || localPasswordMatches || passIsBlankInCloud) {
+                    isValid = true
+                    
+                    val effectivePassword = when {
+                        cleanPassword.isNotBlank() -> cleanPassword
+                        cloudPass.isNotBlank() -> cloudPass
+                        user?.password?.isNotBlank() == true -> user.password.trim()
+                        else -> cleanPassword
                     }
+
+                    user = cloudUser.copy(email = cleanEmail, password = effectivePassword)
+                    
+                    // Cache user locally
+                    database.userDao().insertUser(user!!)
+
+                    // If cloud password was blank or different, sync back to repair cloud record
+                    if (cloudPass.isBlank() || cloudPass != effectivePassword) {
+                        FirebaseSyncManager.syncUserToCloud(
+                            context = getApplication(),
+                            user = user!!,
+                            balances = cloudData.balances,
+                            transactions = cloudData.transactions
+                        )
+                    }
+
+                    // Restore balances
+                    cloudData.balances.forEach { (symbol, amount) ->
+                        repository.setBalance(symbol, amount)
+                    }
+                    // Restore transactions
+                    if (cloudData.transactions.isNotEmpty()) {
+                        repository.seedTransactions(cloudData.transactions)
+                    }
+                } else {
+                    isValid = false
                 }
+            } else if (user != null && localPasswordMatches) {
+                // Offline login fallback: User exists locally and password matches
+                isValid = true
             }
 
             if (!isValid || user == null) {
                 launch(Dispatchers.Main) {
-                    onError("Invalid email or password")
+                    if (user == null && cloudData == null && !isOnline.value) {
+                        onError("Network Error: Device is offline. Please check your internet connection.")
+                    } else if (user == null && cloudData == null && cloudCheckAttempted) {
+                        onError("Account not found. Please check your email or register.")
+                    } else {
+                        onError("Invalid email or password")
+                    }
                 }
             } else {
                 // Persist session

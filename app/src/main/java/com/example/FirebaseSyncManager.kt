@@ -190,28 +190,38 @@ object FirebaseSyncManager {
             )
         }
 
-        val data = hashMapOf(
-            "email" to user.email,
+        val cleanEmail = user.email.lowercase().trim()
+        val data = hashMapOf<String, Any>(
+            "email" to cleanEmail,
             "username" to user.username,
-            "password" to user.password,
             "balances" to balances,
             "transactions" to txListMaps,
             "lastUpdated" to lastUpdatedTimestamp
         )
 
-        val docRef = fs.collection("users").document(user.email.lowercase())
+        val docRef = fs.collection("users").document(cleanEmail)
         docRef.get().addOnSuccessListener { snapshot ->
+            val existingCloudPass = snapshot.getString("password") ?: ""
+            val userPass = user.password.trim()
+            val finalPassword = when {
+                userPass.isNotBlank() -> userPass
+                existingCloudPass.isNotBlank() -> existingCloudPass
+                else -> ""
+            }
+            data["password"] = finalPassword
+
             if (!snapshot.exists() || snapshot.getLong("createdTimestamp") == null) {
                 data["createdTimestamp"] = System.currentTimeMillis()
             }
             docRef.set(data, SetOptions.merge())
                 .addOnSuccessListener {
-                    Log.d(TAG, "Synced user ${user.email}, balances, and ${transactions.size} transactions to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
+                    Log.d(TAG, "Synced user $cleanEmail, balances, and ${transactions.size} transactions to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
                 }
                 .addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to sync user ${user.email} to Cloud database", e)
+                    Log.e(TAG, "Failed to sync user $cleanEmail to Cloud database", e)
                 }
         }.addOnFailureListener {
+            data["password"] = user.password.trim()
             data["createdTimestamp"] = System.currentTimeMillis()
             docRef.set(data, SetOptions.merge())
         }
