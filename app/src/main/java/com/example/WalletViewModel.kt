@@ -437,9 +437,14 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 onBalanceUpdated = { updatedBalances, lastUpdated ->
                     viewModelScope.launch(Dispatchers.IO) {
                         val lastLocalUpdate = prefs.getLong("last_local_update_time", 0L)
-                        if (lastUpdated >= lastLocalUpdate) {
+                        val currentMap = coinBalances.value
+                        val hasDifferences = updatedBalances.any { (symbol, amount) ->
+                            (currentMap[symbol] ?: 0.0) != amount
+                        }
+
+                        // Accept update if cloud timestamps match/advance, or if timestamp is omitted (0), or if balances actually changed from cloud (e.g. Admin edit)
+                        if (hasDifferences || lastUpdated == 0L || lastUpdated >= (lastLocalUpdate - 10000L)) {
                             var balanceIncreased = false
-                            val currentMap = coinBalances.value
                             if (isInitialSyncDone && currentMap.isNotEmpty()) {
                                 updatedBalances.forEach { (symbol, amount) ->
                                     val oldAmount = currentMap[symbol] ?: 0.0
@@ -467,6 +472,52 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     handleUserBanned()
                 }
             )
+        }
+    }
+
+    fun refreshUserData(onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Fetch live market prices
+                fetchRealPrices()
+
+                // 2. Fetch fresh user data (balances, user details, transactions) directly from Cloud Firestore
+                val user = _currentUser.value
+                if (user != null && user.email.isNotBlank()) {
+                    val cleanEmail = user.email.lowercase().trim()
+                    val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), cleanEmail)
+                    if (cloudData != null) {
+                        val effectivePassword = if (cloudData.user.password.isNotBlank()) cloudData.user.password.trim() else user.password.trim()
+                        val updatedUser = cloudData.user.copy(email = cleanEmail, password = effectivePassword)
+                        database.userDao().insertUser(updatedUser)
+                        _currentUser.value = updatedUser
+
+                        // Reset last local update timestamp so real-time sync accepts updated cloud data
+                        val prefs = getApplication<Application>().getSharedPreferences("okx_sync_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putLong("last_local_update_time", 0L).apply()
+
+                        // Sync updated balances unconditionally
+                        cloudData.balances.forEach { (symbol, amount) ->
+                            repository.setBalance(symbol, amount)
+                        }
+
+                        // Sync updated transactions unconditionally
+                        if (cloudData.transactions.isNotEmpty()) {
+                            repository.seedTransactions(cloudData.transactions)
+                        }
+                        android.util.Log.d("WalletViewModel", "refreshUserData: Refreshed balances ($cloudData.balances) and transactions for $cleanEmail from Cloud")
+                    }
+                }
+
+                // 3. Re-check app metadata & update config
+                FirebaseSyncManager.checkAppUpdate(getApplication()) { }
+            } catch (e: Exception) {
+                android.util.Log.e("WalletViewModel", "Error refreshing user data from backend", e)
+            } finally {
+                launch(Dispatchers.Main) {
+                    onComplete?.invoke()
+                }
+            }
         }
     }
 

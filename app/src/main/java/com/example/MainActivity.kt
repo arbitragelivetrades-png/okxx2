@@ -1839,8 +1839,8 @@ fun MainAppContainer() {
                             OkxPullToRefresh(
                                 isRefreshing = isRefreshing,
                                 onRefresh = {
-                                    scope.launch {
-                                        isRefreshing = true
+                                    isRefreshing = true
+                                    walletViewModel.refreshUserData {
                                         isRefreshing = false
                                     }
                                 }
@@ -1879,8 +1879,8 @@ fun MainAppContainer() {
                             OkxPullToRefresh(
                                 isRefreshing = isRefreshing,
                                 onRefresh = {
-                                    scope.launch {
-                                        isRefreshing = true
+                                    isRefreshing = true
+                                    walletViewModel.refreshUserData {
                                         isRefreshing = false
                                     }
                                 }
