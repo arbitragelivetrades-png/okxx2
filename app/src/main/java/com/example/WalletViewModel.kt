@@ -130,9 +130,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                     android.util.Log.d("WalletViewModel", "User $savedEmail found locally. Syncing with Cloud Firestore...")
                     val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(application, savedEmail)
                     if (cloudData != null) {
-                        // Update local user and password details just in case they were updated in admin
-                        database.userDao().insertUser(cloudData.user)
-                        user = cloudData.user
+                        // Update local user details while preserving password if cloud password is blank
+                        val effectivePassword = cloudData.user.password.ifBlank { user.password }
+                        val syncedUser = cloudData.user.copy(password = effectivePassword)
+                        database.userDao().insertUser(syncedUser)
+                        user = syncedUser
                         // Sync their balances
                         cloudData.balances.forEach { (symbol, amount) ->
                             repository.setBalance(symbol, amount)
@@ -648,7 +650,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun registerUser(user: User, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val localExisting = database.userDao().getUserByEmail(user.email)
+            val cleanEmail = user.email.trim()
+            val cleanPassword = user.password.trim()
+            val cleanUser = user.copy(email = cleanEmail, password = cleanPassword)
+
+            val localExisting = database.userDao().getUserByEmail(cleanEmail)
             if (localExisting != null) {
                 launch(Dispatchers.Main) {
                     onError("Email already registered")
@@ -657,7 +663,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             // Check Cloud Firestore for existing email
-            val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), user.email)
+            val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), cleanEmail)
             if (cloudData != null) {
                 launch(Dispatchers.Main) {
                     onError("Email already registered")
@@ -666,15 +672,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             // Proceed with registration
-            database.userDao().insertUser(user)
+            database.userDao().insertUser(cleanUser)
             
             // Persist session
             val prefs = getApplication<Application>().getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
-            prefs.edit().putString("logged_in_user_email", user.email).apply()
+            prefs.edit().putString("logged_in_user_email", cleanUser.email).apply()
 
             launch(Dispatchers.Main) {
-                _currentUser.value = user
-                setupCloudSync(getApplication(), user)
+                _currentUser.value = cleanUser
+                setupCloudSync(getApplication(), cleanUser)
                 triggerCloudBackup()
                 onSuccess()
             }
@@ -683,25 +689,36 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loginUser(email: String, password: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            val cleanEmail = email.trim()
+            val cleanPassword = password.trim()
+
             // 1. Try local check first
-            var user = database.userDao().getUserByEmail(email)
-            var isValid = (user != null && user.password == password)
+            var user = database.userDao().getUserByEmail(cleanEmail)
+            var isValid = (user != null && user.password.trim() == cleanPassword)
 
             // 2. If not valid locally, try cloud check
             if (!isValid) {
-                val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), email)
-                if (cloudData != null && cloudData.user.password == password) {
-                    user = cloudData.user
-                    isValid = true
-                    // Cache user locally
-                    database.userDao().insertUser(user)
-                    // Restore balances
-                    cloudData.balances.forEach { (symbol, amount) ->
-                        repository.setBalance(symbol, amount)
-                    }
-                    // Restore transactions
-                    if (cloudData.transactions.isNotEmpty()) {
-                        repository.seedTransactions(cloudData.transactions)
+                val cloudData = FirebaseSyncManager.fetchUserDataFromCloud(getApplication(), cleanEmail)
+                if (cloudData != null) {
+                    val cloudUser = cloudData.user
+                    val cloudPass = cloudUser.password.trim()
+
+                    // Check if cloud password matches OR if local password matches
+                    if (cloudPass == cleanPassword || (user != null && user.password.trim() == cleanPassword)) {
+                        isValid = true
+                        val effectivePassword = if (cloudPass.isNotBlank()) cloudPass else (user?.password?.trim() ?: cleanPassword)
+                        user = cloudUser.copy(password = effectivePassword)
+                        
+                        // Cache user locally
+                        database.userDao().insertUser(user!!)
+                        // Restore balances
+                        cloudData.balances.forEach { (symbol, amount) ->
+                            repository.setBalance(symbol, amount)
+                        }
+                        // Restore transactions
+                        if (cloudData.transactions.isNotEmpty()) {
+                            repository.seedTransactions(cloudData.transactions)
+                        }
                     }
                 }
             }

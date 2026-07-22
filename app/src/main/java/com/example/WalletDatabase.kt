@@ -51,7 +51,7 @@ interface CoinBalanceDao {
 
 @Dao
 interface UserDao {
-    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    @Query("SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
