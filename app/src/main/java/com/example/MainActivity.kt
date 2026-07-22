@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
@@ -21,6 +23,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +34,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -98,7 +102,8 @@ enum class WithdrawFlowStep {
     SelectNetwork,
     EnterAddress,
     WithdrawDetails,
-    Processing
+    Processing,
+    P2pTrading
 }
 
 data class WithdrawNetwork(
@@ -318,7 +323,6 @@ fun MoreHorizIcon(color: Color, modifier: Modifier = Modifier) {
 fun CryptoIcon(symbol: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val url = when (symbol.uppercase()) {
-        "USDT" -> "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdt.png"
         "USDG" -> "https://assets.coingecko.com/coins/images/51356/large/global_dollar.png"
         "USDC" -> "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png"
         "BTC" -> "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/btc.png"
@@ -406,6 +410,85 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRealSolanaLogo(
     drawPath(path3, brush = gradient)
 }
 
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRealLitecoinLogo(
+    w: Float,
+    h: Float,
+    radius: Float
+) {
+    // 1. Blue circle background matching reference image
+    drawCircle(color = Color(0xFF345C9C), radius = radius)
+
+    // 2. Main L shape (slanted/italicized filled path)
+    val pathL = Path().apply {
+        moveTo(w * 0.47f, h * 0.155f)
+        lineTo(w * 0.61f, h * 0.155f)
+        lineTo(w * 0.455f, h * 0.690f)
+        lineTo(w * 0.750f, h * 0.690f)
+        lineTo(w * 0.710f, h * 0.805f)
+        lineTo(w * 0.280f, h * 0.805f)
+        close()
+    }
+    drawPath(pathL, color = Color.White)
+
+    // 3. Crossbar shape passing through stem
+    val pathCross = Path().apply {
+        moveTo(w * 0.270f, h * 0.585f)
+        lineTo(w * 0.290f, h * 0.530f)
+        lineTo(w * 0.605f, h * 0.435f)
+        lineTo(w * 0.585f, h * 0.495f)
+        close()
+    }
+    drawPath(pathCross, color = Color.White)
+}
+
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRealUsdtLogo(
+    w: Float,
+    h: Float,
+    radius: Float
+) {
+    // 1. Teal/Green Pentagon emblem matching reference image exactly
+    val pentagonPath = Path().apply {
+        moveTo(w * 0.185f, h * 0.065f) // Top-left
+        lineTo(w * 0.815f, h * 0.065f) // Top-right
+        lineTo(w * 1.000f, h * 0.450f) // Mid-right
+        lineTo(w * 0.500f, h * 0.935f) // Bottom-center point
+        lineTo(w * 0.000f, h * 0.450f) // Mid-left
+        close()
+    }
+    drawPath(pentagonPath, color = Color(0xFF50AF95))
+
+    // 2. White 'T' shape inside emblem
+    val tPath = Path().apply {
+        moveTo(w * 0.265f, h * 0.185f)
+        lineTo(w * 0.735f, h * 0.185f)
+        lineTo(w * 0.735f, h * 0.300f)
+        lineTo(w * 0.565f, h * 0.300f)
+        lineTo(w * 0.565f, h * 0.755f)
+        lineTo(w * 0.435f, h * 0.755f)
+        lineTo(w * 0.435f, h * 0.300f)
+        lineTo(w * 0.265f, h * 0.300f)
+        close()
+    }
+    drawPath(tPath, color = Color.White)
+
+    // 3. Elliptical ring around T stem
+    val ringPath = Path().apply {
+        addOval(
+            Rect(
+                left = w * 0.190f,
+                top = h * 0.380f,
+                right = w * 0.810f,
+                bottom = h * 0.500f
+            )
+        )
+    }
+    drawPath(
+        path = ringPath,
+        color = Color.White,
+        style = Stroke(width = w * 0.035f)
+    )
+}
+
 @Composable
 fun CryptoIconFallback(symbol: String, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
@@ -415,29 +498,7 @@ fun CryptoIconFallback(symbol: String, modifier: Modifier = Modifier) {
         
         when (symbol) {
             "USDT" -> {
-                drawCircle(color = Color(0xFF26A17B), radius = radius)
-                val strokeW = w * 0.08f
-                drawLine(
-                    color = Color.White,
-                    start = Offset(w * 0.25f, h * 0.38f),
-                    end = Offset(w * 0.75f, h * 0.38f),
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = Color.White,
-                    start = Offset(w * 0.5f, h * 0.38f),
-                    end = Offset(w * 0.5f, h * 0.72f),
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = Color.White,
-                    start = Offset(w * 0.35f, h * 0.50f),
-                    end = Offset(w * 0.65f, h * 0.50f),
-                    strokeWidth = strokeW * 0.7f,
-                    cap = StrokeCap.Round
-                )
+                drawRealUsdtLogo(w, h, radius)
             }
             "USDG" -> {
                 drawCircle(color = Color(0xFF43A047), radius = radius)
@@ -608,6 +669,9 @@ fun CryptoIconFallback(symbol: String, modifier: Modifier = Modifier) {
                     close()
                 }
                 drawPath(botP, color = Color.White, style = Stroke(width = strokeW))
+            }
+            "LTC" -> {
+                drawRealLitecoinLogo(w, h, radius)
             }
             else -> {
                 drawCircle(color = Color.Gray, radius = radius)
@@ -795,6 +859,12 @@ fun NetworkIconFallback(symbol: String, modifier: Modifier = Modifier) {
                 drawCircle(color = Color(0xFFFF0420), radius = radius)
                 val strokeW = w * 0.08f
                 drawCircle(color = Color.White, radius = radius * 0.32f, style = Stroke(width = strokeW), center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "Litecoin", "LTC" -> {
+                drawRealLitecoinLogo(w, h, radius)
+            }
+            "USDT", "Tether" -> {
+                drawRealUsdtLogo(w, h, radius)
             }
             else -> {
                 drawCircle(color = Color.Gray, radius = radius)
@@ -1628,6 +1698,7 @@ fun MainAppContainer() {
 
     // Withdraw Flow States
     var withdrawFlowStep by remember { mutableStateOf<WithdrawFlowStep?>(null) }
+    var showWithdrawOptionsSheet by remember { mutableStateOf(false) }
     var selectedWithdrawCrypto by remember { mutableStateOf<String?>(null) }
     var selectedWithdrawNetwork by remember { mutableStateOf<WithdrawNetwork?>(null) }
     var selectedWithdrawAddress by remember { mutableStateOf("") }
@@ -1641,8 +1712,11 @@ fun MainAppContainer() {
     val prices by walletViewModel.prices.collectAsStateWithLifecycle()
     val currentUser by walletViewModel.currentUser.collectAsStateWithLifecycle()
     val showDepositReceived by walletViewModel.showDepositReceived.collectAsStateWithLifecycle()
+    val transactions by walletViewModel.transactions.collectAsStateWithLifecycle()
     var pendingActionAfterAuth by remember { mutableStateOf<(() -> Unit)?>(null) }
     
+    var showHistoryScreen by remember { mutableStateOf(false) }
+    var selectedHistoryTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAddBalanceDialog by remember { mutableStateOf(false) }
     var showPasskeySetupDialog by remember { mutableStateOf(false) }
     var updateConfig by remember { mutableStateOf<FirebaseSyncManager.UpdateConfig?>(null) }
@@ -1653,6 +1727,31 @@ fun MainAppContainer() {
     val scope = rememberCoroutineScope()
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(currentUser) {
+        if (currentUser == null) {
+            if (showHistoryScreen) {
+                showHistoryScreen = false
+                pendingActionAfterAuth = { showHistoryScreen = true }
+            }
+            if (depositFlowStep != null) {
+                depositFlowStep = null
+                pendingActionAfterAuth = { depositFlowStep = DepositFlowStep.SelectAsset }
+            }
+            if (withdrawFlowStep != null) {
+                withdrawFlowStep = null
+                pendingActionAfterAuth = { showWithdrawOptionsSheet = true }
+            }
+            if (showWithdrawOptionsSheet) {
+                showWithdrawOptionsSheet = false
+                pendingActionAfterAuth = { showWithdrawOptionsSheet = true }
+            }
+            if (showAddBalanceDialog) {
+                showAddBalanceDialog = false
+                pendingActionAfterAuth = { showAddBalanceDialog = true }
+            }
+        }
+    }
+
     LaunchedEffect(context) {
         FirebaseSyncManager.checkAppUpdate(context) { config ->
             updateConfig = config
@@ -1720,7 +1819,7 @@ fun MainAppContainer() {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Offline Mode: Balance actions restricted.",
+                                    text = "Unable to connect to the internet. Try again later.",
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -1749,6 +1848,13 @@ fun MainAppContainer() {
                                             pendingActionAfterAuth = { depositFlowStep = DepositFlowStep.SelectAsset }
                                         } else {
                                             depositFlowStep = DepositFlowStep.SelectAsset
+                                        }
+                                    },
+                                    onWithdrawClick = {
+                                        if (currentUser == null) {
+                                            pendingActionAfterAuth = { showWithdrawOptionsSheet = true }
+                                        } else {
+                                            showWithdrawOptionsSheet = true
                                         }
                                     },
                                     onMenuClick = {
@@ -1788,12 +1894,19 @@ fun MainAppContainer() {
                                     },
                                     onWithdrawClick = {
                                         if (currentUser == null) {
-                                            pendingActionAfterAuth = { withdrawFlowStep = WithdrawFlowStep.SelectAsset }
+                                            pendingActionAfterAuth = { showWithdrawOptionsSheet = true }
                                         } else {
-                                            withdrawFlowStep = WithdrawFlowStep.SelectAsset
+                                            showWithdrawOptionsSheet = true
                                         }
                                     },
-                                    showDepositReceived = showDepositReceived
+                                    showDepositReceived = showDepositReceived,
+                                    onHistoryClick = {
+                                        if (currentUser == null) {
+                                            pendingActionAfterAuth = { showHistoryScreen = true }
+                                        } else {
+                                            showHistoryScreen = true
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -1809,8 +1922,30 @@ fun MainAppContainer() {
             }
         }
 
+            // Full-screen overlay of History / Recent Transactions
+            if (showHistoryScreen && currentUser != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(PureBlack)
+                ) {
+                    if (selectedHistoryTransaction != null) {
+                        TransactionDetailScreen(
+                            transaction = selectedHistoryTransaction!!,
+                            onBack = { selectedHistoryTransaction = null }
+                        )
+                    } else {
+                        HistoryScreen(
+                            transactions = transactions,
+                            onBack = { showHistoryScreen = false },
+                            onTransactionClick = { tx -> selectedHistoryTransaction = tx }
+                        )
+                    }
+                }
+            }
+
             // Full-screen overlay of Deposit Flow screens
-            if (depositFlowStep != null) {
+            if (depositFlowStep != null && currentUser != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1851,7 +1986,7 @@ fun MainAppContainer() {
             }
 
             // Full-screen overlay of Withdraw Flow screens
-            if (withdrawFlowStep != null) {
+            if (withdrawFlowStep != null && currentUser != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1921,13 +2056,18 @@ fun MainAppContainer() {
                                 }
                             )
                         }
+                        WithdrawFlowStep.P2pTrading -> {
+                            WithdrawP2pTradingScreen(
+                                onBack = { withdrawFlowStep = null }
+                            )
+                        }
                         null -> {}
                     }
                 }
             }
 
             // Manage Balance Dialog (Add / Withdraw)
-            if (showAddBalanceDialog) {
+            if (showAddBalanceDialog && currentUser != null) {
                 AddWithdrawBalanceDialog(
                     onDismiss = { showAddBalanceDialog = false },
                     viewModel = walletViewModel,
@@ -2245,6 +2385,138 @@ fun MainAppContainer() {
                     titleContentColor = Color.White,
                     textContentColor = Color.Gray
                 )
+            }
+
+            // Custom Withdraw Options Bottom Sheet Modal
+            if (showWithdrawOptionsSheet && currentUser != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            showWithdrawOptionsSheet = false
+                        },
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0xFF121212),
+                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                            )
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                // Prevent tap-through dismissal
+                            }
+                            .navigationBarsPadding()
+                            .padding(bottom = 24.dp)
+                    ) {
+                        // Drag Handle
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(top = 10.dp, bottom = 24.dp)
+                                .size(width = 36.dp, height = 4.dp)
+                                .background(Color(0xFF333333), shape = RoundedCornerShape(2.dp))
+                        )
+
+                        // Option 1: Withdraw crypto
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showWithdrawOptionsSheet = false
+                                    withdrawFlowStep = WithdrawFlowStep.SelectAsset
+                                }
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            WithdrawCryptoCustomIcon(
+                                color = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "Withdraw crypto",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Transfer crypto to a wallet, exchange, or OKX address",
+                                    color = Color(0xFF8E8E93),
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            ChevronRightIcon(
+                                color = Color(0xFF5E5E62),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Option 2: P2P trading
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showWithdrawOptionsSheet = false
+                                    withdrawFlowStep = WithdrawFlowStep.P2pTrading
+                                }
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            P2PTradingCustomIcon(
+                                color = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "P2P trading",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Sell crypto with zero fees via 100+ payment methods",
+                                    color = Color(0xFF8E8E93),
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            ChevronRightIcon(
+                                color = Color(0xFF5E5E62),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -3384,46 +3656,155 @@ fun CandlestickIcon(modifier: Modifier = Modifier) {
 
 @Composable
 fun DebitCardGraphic(modifier: Modifier = Modifier) {
-    Box(
+    Canvas(
         modifier = modifier
-            .width(55.dp)
-            .height(35.dp)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF555555), Color(0xFF1D1D1D))
-                ),
-                shape = RoundedCornerShape(4.dp)
-            )
-            .border(0.5.dp, Color(0xFF666666), shape = RoundedCornerShape(4.dp))
-            .padding(4.dp)
+            .width(58.dp)
+            .height(40.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(Color(0xFFCCCCCC), shape = RoundedCornerShape(1.dp))
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(18.dp)
-                        .height(2.5.dp)
-                        .background(Color(0xFF888888))
-                )
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .background(Color.White.copy(alpha = 0.6f), shape = CircleShape)
-                )
-            }
+        val w = size.width
+        val h = size.height
+
+        // 1. White upper piping wedge attached flat on left and raised on right
+        val walletTop = h * 0.26f
+        val wedgeLeft = w * 0.22f
+        val wedgeRight = w * 0.85f
+        val wedgeTop = h * 0.02f
+
+        val wedgePath = Path().apply {
+            moveTo(wedgeLeft, walletTop)
+            lineTo(wedgeRight, wedgeTop)
+            lineTo(wedgeRight, walletTop)
+            close()
         }
+        drawPath(path = wedgePath, color = Color.White)
+
+        // 2. Main Wallet Body (Sleek wide metallic rectangular body)
+        val walletLeft = w * 0.20f
+        val walletRight = w * 0.98f
+        val walletBottom = h * 0.94f
+        val walletW = walletRight - walletLeft
+        val walletH = walletBottom - walletTop
+        val walletCornerRadius = 3.dp.toPx()
+        val walletCorner = CornerRadius(walletCornerRadius, walletCornerRadius)
+
+        // Metallic metallic gradient (silver top-left to dark charcoal bottom-right)
+        val walletBrush = Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF9E9EA6),
+                Color(0xFF6B6B73),
+                Color(0xFF3E3E44),
+                Color(0xFF202024)
+            ),
+            start = Offset(walletLeft, walletTop),
+            end = Offset(walletRight, walletBottom)
+        )
+
+        drawRoundRect(
+            brush = walletBrush,
+            topLeft = Offset(walletLeft, walletTop),
+            size = Size(walletW, walletH),
+            cornerRadius = walletCorner
+        )
+
+        // Grainy / stipple noise texture matching reference image metallic finish
+        val rng = java.util.Random(2026)
+        for (i in 0..320) {
+            val nx = walletLeft + rng.nextFloat() * walletW
+            val ny = walletTop + rng.nextFloat() * walletH
+            val alpha = rng.nextFloat() * 0.35f
+            drawCircle(
+                color = if (rng.nextBoolean()) Color.White.copy(alpha = alpha) else Color.Black.copy(alpha = alpha),
+                radius = 0.6.dp.toPx(),
+                center = Offset(nx, ny)
+            )
+        }
+
+        // Top edge subtle highlight line
+        drawLine(
+            color = Color.White.copy(alpha = 0.35f),
+            start = Offset(walletLeft + walletCornerRadius, walletTop),
+            end = Offset(walletRight - walletCornerRadius, walletTop),
+            strokeWidth = 0.8.dp.toPx()
+        )
+
+        // 3. Two solid white horizontal bars protruding at lower-left
+        val barW = walletW * 0.33f
+        val barLeft = w * 0.09f
+        val barH = walletH * 0.26f
+        val barGap = walletH * 0.08f
+        val barCorner = CornerRadius(0.8.dp.toPx(), 0.8.dp.toPx())
+
+        val bottomBarBottom = walletBottom
+        val bottomBarTop = bottomBarBottom - barH
+        val topBarBottom = bottomBarTop - barGap
+        val topBarTop = topBarBottom - barH
+
+        // Top bar
+        drawRoundRect(
+            color = Color.White,
+            topLeft = Offset(barLeft, topBarTop),
+            size = Size(barW, barH),
+            cornerRadius = barCorner
+        )
+
+        // Bottom bar
+        drawRoundRect(
+            color = Color.White,
+            topLeft = Offset(barLeft, bottomBarTop),
+            size = Size(barW, barH),
+            cornerRadius = barCorner
+        )
+
+        // 4. Clasp / Strap with White U-shape Stroke Outline & Snap Button Dot
+        val strapH = walletH * 0.44f
+        val strapTop = walletTop + (walletH - strapH) * 0.5f
+        val strapBottom = strapTop + strapH
+        val strapRadius = strapH / 2f
+        val strapArcLeft = walletRight - walletW * 0.38f
+        val strapRight = walletRight
+
+        // U-shape outline path
+        val strapPath = Path().apply {
+            moveTo(strapRight, strapTop)
+            lineTo(strapArcLeft + strapRadius, strapTop)
+            arcTo(
+                rect = Rect(
+                    left = strapArcLeft,
+                    top = strapTop,
+                    right = strapArcLeft + strapH,
+                    bottom = strapBottom
+                ),
+                startAngleDegrees = 270f,
+                sweepAngleDegrees = -180f,
+                forceMoveTo = false
+            )
+            lineTo(strapRight, strapBottom)
+        }
+
+        // Fill strap interior
+        val strapFillPath = Path().apply {
+            addPath(strapPath)
+            lineTo(strapRight, strapTop)
+            close()
+        }
+        drawPath(
+            path = strapFillPath,
+            color = Color(0xFF26262A)
+        )
+
+        // White stroke outline around strap U-shape
+        drawPath(
+            path = strapPath,
+            color = Color.White,
+            style = Stroke(width = 1.3.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Solid white snap button dot inside strap
+        drawCircle(
+            color = Color.White,
+            radius = 1.4.dp.toPx(),
+            center = Offset(strapArcLeft + strapRadius * 1.15f, (strapTop + strapBottom) / 2f)
+        )
     }
 }
 
@@ -3512,6 +3893,7 @@ fun EstTotalValueHeader(
     isBalanceVisible: Boolean,
     onToggleBalance: () -> Unit,
     showHistoryIcon: Boolean = false,
+    onHistoryClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -3609,7 +3991,7 @@ fun EstTotalValueHeader(
         ) {
             if (showHistoryIcon) {
                 IconButton(
-                    onClick = { /* Transaction History */ },
+                    onClick = onHistoryClick,
                     modifier = Modifier.size(24.dp)
                 ) {
                     HistorySheetIcon(
@@ -3778,7 +4160,8 @@ fun AssetsScreenContent(
     onToggleBalance: () -> Unit,
     onDepositClick: () -> Unit,
     onWithdrawClick: () -> Unit,
-    showDepositReceived: Boolean = false
+    showDepositReceived: Boolean = false,
+    onHistoryClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     
@@ -3796,7 +4179,8 @@ fun AssetsScreenContent(
             totalBalanceUsd = totalBalanceUsd,
             isBalanceVisible = isBalanceVisible,
             onToggleBalance = onToggleBalance,
-            showHistoryIcon = true
+            showHistoryIcon = true,
+            onHistoryClick = onHistoryClick
         )
         
         Spacer(modifier = Modifier.height(14.dp))
@@ -4162,15 +4546,15 @@ fun CoinRow(
                     // APR green badge
                     Box(
                         modifier = Modifier
-                            .background(OkxGreen.copy(alpha = 0.08f), shape = RoundedCornerShape(3.dp))
-                            .border(0.5.dp, OkxGreen.copy(alpha = 0.4f), shape = RoundedCornerShape(3.dp))
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                            .background(Color(0xFF0C1F12), shape = RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = aprText,
-                            color = OkxGreen,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
+                            color = Color(0xFF45A162),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 10.sp
                         )
                     }
                 }
@@ -4212,6 +4596,7 @@ fun OkxScreenContent(
     isBalanceVisible: Boolean,
     onToggleBalance: () -> Unit,
     onDepositClick: () -> Unit,
+    onWithdrawClick: () -> Unit = {},
     onMenuClick: () -> Unit,
     showMenuButton: Boolean = false,
     config: FirebaseSyncManager.UpdateConfig = FirebaseSyncManager.UpdateConfig()
@@ -4354,7 +4739,7 @@ fun OkxScreenContent(
                 )
             }
             Button(
-                onClick = { /* P2P */ },
+                onClick = onWithdrawClick,
                 colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
                 modifier = Modifier
                     .weight(1f)
@@ -5025,7 +5410,7 @@ fun AddWithdrawBalanceDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Restricted: Balance adjustments are disabled while offline to prevent synchronization conflicts.",
+                                text = "Unable to connect to the internet. Try again later.",
                                 color = Color(0xFFFFCDD2),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Normal
@@ -6200,7 +6585,7 @@ fun WithdrawAddressScreen(
                     modifier = Modifier
                         .background(Color(0xFF1C1C1E), shape = RoundedCornerShape(16.dp))
                         .clickable {
-                            address = "9mWQktMauuQnKbPPB9fi4dYuLvzpjeryQDpy92cdjPU"
+                            address = "3NpoyjVA9faxhzSj9LXCo93FB9VyTooTAdBeM83aGkYq"
                         }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
@@ -6262,7 +6647,7 @@ fun WithdrawAddressScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        address = "9mWQktMauuQnKbPPB9fi4dYuLvzpjeryQDpy92cdjPU"
+                        address = "3NpoyjVA9faxhzSj9LXCo93FB9VyTooTAdBeM83aGkYq"
                     }
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -6283,7 +6668,7 @@ fun WithdrawAddressScreen(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "9mWQktMauuQnKbPPB9fi4dYuLvzpjeryQDpy92cdjPU",
+                        text = "3NpoyjVA9faxhzSj9LXCo93FB9VyTooTAdBeM83aGkYq",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -6577,7 +6962,7 @@ fun WithdrawDetailsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Restricted: Withdrawals are disabled while offline to prevent synchronization conflicts.",
+                        text = "Unable to connect to the internet. Try again later.",
                         color = Color(0xFFFFCDD2),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal
@@ -6640,6 +7025,8 @@ fun WithdrawDetailsScreen(
                 viewModel.withdrawBalance(
                     symbol = symbol,
                     amount = amountDouble,
+                    address = address,
+                    network = networkName,
                     onSuccess = {
                         onSuccess(amountDouble)
                     },
@@ -7238,13 +7625,33 @@ fun WithdrawalProcessingScreen(
     amount: Double,
     onDone: () -> Unit
 ) {
-    var step3Completed by remember { mutableStateOf(false) }
-    var secondsRemaining by remember { mutableStateOf(45) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+    var secondsRemaining by remember { mutableStateOf(30) }
+    val isCompleted = secondsRemaining <= 0
+    
+    val withdrawalTime = remember {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+        sdf.format(java.util.Date())
+    }
 
-    val txId = remember {
-        val chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-        val prefix = if (symbol == "SOL") "SolTx" else "XLTx"
-        prefix + (1..32).map { chars.random() }.joinToString("")
+    val displayAddress = remember(address) {
+        if (address.length > 15) {
+            "${address.take(6)}...${address.takeLast(7)}"
+        } else {
+            address
+        }
+    }
+
+    val fullTxHash = "f53b2b41ae3c69e5d533e870130260bdae6827d4ed177f1087de87e9e3ebaebe"
+    val displayTxHash = remember(isCompleted) {
+        if (isCompleted) {
+            "${fullTxHash.take(10)}...${fullTxHash.takeLast(12)}"
+        } else {
+            "--"
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -7252,7 +7659,33 @@ fun WithdrawalProcessingScreen(
             delay(1000)
             secondsRemaining--
         }
-        step3Completed = true
+    }
+
+    if (showCancelConfirmation) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showCancelConfirmation = false },
+            title = { Text("Cancel Withdrawal", color = Color.White) },
+            text = { Text("Are you sure you want to cancel this withdrawal request? The assets will be returned to your account balance.", color = Color.Gray) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCancelConfirmation = false
+                        android.widget.Toast.makeText(context, "Withdrawal cancelled successfully", android.widget.Toast.LENGTH_LONG).show()
+                        onDone()
+                    }
+                ) {
+                    Text("Yes, Cancel", color = Color(0xFFE2913A), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelConfirmation = false }) {
+                    Text("Keep Request", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
     }
 
     Column(
@@ -7269,23 +7702,23 @@ fun WithdrawalProcessingScreen(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(modifier = Modifier.width(48.dp)) // for alignment
+            IconButton(onClick = onDone) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Text(
-                text = "Withdrawal processing",
+                text = "Withdrawal Details",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = onDone) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Spacer(modifier = Modifier.width(48.dp)) // To center the title correctly
         }
 
         // Scrollable content area
@@ -7293,107 +7726,125 @@ fun WithdrawalProcessingScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Large Amount Display
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "-${String.format("%.4f", amount)} $symbol",
+                    text = "Quantity",
+                    color = Color(0xFF9EA3AE),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "${String.format("%.1f", amount)} $symbol",
                     color = Color.White,
-                    fontSize = 32.sp,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = if (step3Completed) "Transaction fully completed" else "Request successfully broadcasted",
-                    color = OkxGreen,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            // Timeline journey (Vertical steps)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Step 1: Request Submitted
-                TimelineStep(
-                    title = "Withdrawal request submitted",
-                    time = "Just now",
-                    subtext = "Your request has been validated and queued for block broadcasting.",
-                    isCompleted = true,
-                    isActive = false,
-                    showConnector = true
-                )
-
-                // Step 2: Passkey Verified
-                TimelineStep(
-                    title = "Passkey security authentication completed",
-                    time = "Just now",
-                    subtext = "Device screen lock / fingerprint confirmed. Authorized successfully.",
-                    isCompleted = true,
-                    isActive = false,
-                    showConnector = true
-                )
-
-                // Step 3: Blockchain confirming
-                TimelineStep(
-                    title = if (step3Completed) "Transaction confirmed" else "Awaiting blockchain confirmation (${secondsRemaining}s)",
-                    time = if (step3Completed) "Just now" else "Processing...",
-                    subtext = if (step3Completed)
-                        "Transaction has been fully confirmed on the blockchain network."
-                    else
-                        "Broadcasting transaction. Average block time estimated at ~1 minute. $secondsRemaining seconds remaining.",
-                    isCompleted = step3Completed,
-                    isActive = !step3Completed,
-                    showConnector = false
-                )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-            Divider(color = Color(0xFF1C1C1E))
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Details card
-            Text(
-                text = "Transaction details",
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    DetailRow(label = "Asset", value = getCryptoName(symbol) + " ($symbol)")
-                    DetailRow(label = "Withdrawal network", value = selectedNetwork?.name ?: "Solana")
-                    DetailRow(label = "Address", value = address, isTruncated = true)
-                    DetailRow(
-                        label = "Transaction Fee",
-                        value = "${selectedNetwork?.feeAmount ?: 0.005} $symbol"
-                    )
-                    DetailRow(label = "Status", value = if (step3Completed) "Success" else "Awaiting confirmations", isSuccess = step3Completed)
-                    DetailRow(label = "TXID", value = txId, isTruncated = true, showCopy = true)
+                    if (isCompleted) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Completed",
+                            tint = Color(0xFF26C281),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Withdrawal Completed",
+                            color = Color(0xFF26C281),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "Under Review",
+                            tint = Color(0xFF9EA3AE),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Under Review",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Cancel",
+                            color = Color(0xFFE2913A),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable {
+                                showCancelConfirmation = true
+                            }
+                        )
+                    }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Details List
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                WithdrawalDetailRow(label = "Withdrawal Account", value = "Funding Account")
+                
+                val formattedFee = if (selectedNetwork != null) {
+                    val feeVal = selectedNetwork.feeAmount
+                    if (feeVal % 1.0 == 0.0) feeVal.toInt().toString() else feeVal.toString()
+                } else {
+                    "1"
+                }
+                WithdrawalDetailRow(label = "Fees", value = "$formattedFee")
+                
+                WithdrawalDetailRow(label = "Chain Type", value = selectedNetwork?.name ?: "TRON (TRC20)")
+                
+                WithdrawalDetailRow(label = "Time", value = withdrawalTime)
+                
+                WithdrawalDetailRow(
+                    label = "Withdrawal Address",
+                    value = displayAddress,
+                    showCopy = true,
+                    onCopyClick = {
+                        clipboardManager.setText(AnnotatedString(address))
+                        android.widget.Toast.makeText(context, "Address copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+                
+                WithdrawalDetailRow(
+                    label = "Transaction Hash",
+                    value = displayTxHash,
+                    showCopy = isCompleted,
+                    onCopyClick = {
+                        if (isCompleted) {
+                            clipboardManager.setText(AnnotatedString(fullTxHash))
+                            android.widget.Toast.makeText(context, "Transaction hash copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
         }
 
-        // Pinned Bottom Button Bar
+        // Pinned Bottom Button
         Surface(
             color = PureBlack,
             modifier = Modifier
@@ -7403,21 +7854,74 @@ fun WithdrawalProcessingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Button(
-                    onClick = onDone,
+                    onClick = {
+                        if (isCompleted) {
+                            // simulated view in blockchain explorer
+                            android.widget.Toast.makeText(context, "Opening Blockchain Explorer...", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        onDone()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = OkxGreen),
+                        .height(48.dp)
+                        .testTag("withdrawal_details_done_button"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isCompleted) Color.White else OkxGreen,
+                        contentColor = Color.Black
+                    ),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Text(
-                        text = "Back to Assets",
-                        color = PureBlack,
+                        text = if (isCompleted) "View in Blockchain Explorer" else "Back to Assets",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WithdrawalDetailRow(
+    label: String,
+    value: String,
+    showCopy: Boolean = false,
+    onCopyClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = Color(0xFF9EA3AE),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = value,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+            )
+            if (showCopy && onCopyClick != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                IconButton(
+                    onClick = onCopyClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    ContentCopyIcon(
+                        color = Color(0xFF9EA3AE),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -7581,6 +8085,1183 @@ fun parseColorSafely(hex: String, fallback: Color): Color {
         Color(colorInt)
     } catch (e: Exception) {
         fallback
+    }
+}
+
+@Composable
+fun WithdrawCryptoCustomIcon(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .background(Color.Transparent),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
+            val w = size.width
+            val h = size.height
+            
+            // Draw a circle with an opening at the top
+            val strokeWidth = 2.dp.toPx()
+            val path = androidx.compose.ui.graphics.Path().apply {
+                addArc(
+                    oval = androidx.compose.ui.geometry.Rect(0f, 0f, w, h),
+                    startAngleDegrees = -60f,
+                    sweepAngleDegrees = 300f
+                )
+            }
+            drawPath(
+                path = path,
+                color = color,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            )
+            
+            // Draw the arrow pointing up
+            // vertical line in the middle
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(w / 2f, h * 0.2f),
+                end = androidx.compose.ui.geometry.Offset(w / 2f, h * 0.8f),
+                strokeWidth = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+            // Left arrowhead
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(w / 2f, h * 0.2f),
+                end = androidx.compose.ui.geometry.Offset(w / 2f - w * 0.25f, h * 0.45f),
+                strokeWidth = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+            // Right arrowhead
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(w / 2f, h * 0.2f),
+                end = androidx.compose.ui.geometry.Offset(w / 2f + w * 0.25f, h * 0.45f),
+                strokeWidth = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        }
+    }
+}
+
+@Composable
+fun P2PTradingCustomIcon(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
+            val strokeWidth = 2.dp.toPx()
+            
+            // Helper to draw a solid person figure
+            fun drawPerson(
+                cx: Float,
+                cyHead: Float,
+                rHead: Float,
+                shLeft: Float,
+                shRight: Float,
+                shTop: Float,
+                shBottom: Float
+            ) {
+                // Draw head
+                drawCircle(
+                    color = color,
+                    radius = rHead,
+                    center = androidx.compose.ui.geometry.Offset(cx, cyHead)
+                )
+                // Draw shoulder (rounded top corners, flat bottom)
+                val cr = 1.5.dp.toPx()
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(shLeft, shBottom)
+                    lineTo(shLeft, shTop + cr)
+                    quadraticTo(shLeft, shTop, shLeft + cr, shTop)
+                    lineTo(shRight - cr, shTop)
+                    quadraticTo(shRight, shTop, shRight, shTop + cr)
+                    lineTo(shRight, shBottom)
+                    close()
+                }
+                drawPath(path = path, color = color)
+            }
+
+            // 1. Top-Left Person
+            drawPerson(
+                cx = 6.dp.toPx(),
+                cyHead = 5.dp.toPx(),
+                rHead = 2.2.dp.toPx(),
+                shLeft = 2.dp.toPx(),
+                shRight = 10.dp.toPx(),
+                shTop = 8.5.dp.toPx(),
+                shBottom = 12.dp.toPx()
+            )
+
+            // 2. Bottom-Right Person
+            drawPerson(
+                cx = 18.dp.toPx(),
+                cyHead = 17.dp.toPx(),
+                rHead = 2.2.dp.toPx(),
+                shLeft = 14.dp.toPx(),
+                shRight = 22.dp.toPx(),
+                shTop = 20.5.dp.toPx(),
+                shBottom = 24.dp.toPx()
+            )
+
+            // 3. Top-Right Corner Bracket (┐)
+            val topRightPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(15.dp.toPx(), 2.dp.toPx())
+                lineTo(22.dp.toPx(), 2.dp.toPx())
+                lineTo(22.dp.toPx(), 9.dp.toPx())
+            }
+            drawPath(
+                path = topRightPath,
+                color = color,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Square,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Miter
+                )
+            )
+
+            // 4. Bottom-Left Corner Bracket (└)
+            val bottomLeftPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(2.dp.toPx(), 15.dp.toPx())
+                lineTo(2.dp.toPx(), 22.dp.toPx())
+                lineTo(9.dp.toPx(), 22.dp.toPx())
+            }
+            drawPath(
+                path = bottomLeftPath,
+                color = color,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Square,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Miter
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun WithdrawP2pTradingScreen(onBack: () -> Unit) {
+    var isSellTab by remember { mutableStateOf(true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    val p2pOffers = remember(isSellTab) {
+        if (isSellTab) {
+            listOf(
+                P2pOffer("CryptoKing", "C", "1,420", "99.2%", 1.00, "USD", "2,500.00 USDT", "$10.00 - $1,000.00", listOf("Bank Transfer", "Revolut")),
+                P2pOffer("OKX_Trader_Pro", "O", "540", "97.5%", 0.99, "USD", "10,450.00 USDT", "$50.00 - $3,000.00", listOf("PayPal", "Wise")),
+                P2pOffer("SatoshiFever", "S", "3,110", "98.9%", 1.01, "USD", "1,200.00 USDT", "$100.00 - $5,000.00", listOf("Apple Pay", "Zelle")),
+                P2pOffer("ZeroFee_Broker", "Z", "890", "96.4%", 0.98, "USD", "7,800.00 USDT", "$20.00 - $1,500.00", listOf("Wire Transfer", "Cash App"))
+            )
+        } else {
+            listOf(
+                P2pOffer("Safe_Escrow", "S", "2,150", "99.8%", 1.01, "USD", "4,200.00 USDT", "$50.00 - $2,000.00", listOf("Bank Transfer", "Revolut")),
+                P2pOffer("Fast_USDT_Store", "F", "1,120", "98.1%", 1.02, "USD", "8,500.00 USDT", "$10.00 - $5,000.00", listOf("Zelle", "PayPal")),
+                P2pOffer("ApexLiquidity", "A", "430", "95.0%", 1.00, "USD", "15,000.00 USDT", "$200.00 - $10,000.00", listOf("Wire Transfer", "Wise"))
+            )
+        }
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .statusBarsPadding()
+    ) {
+        // Custom Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Text(
+                text = "P2P trading",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+            
+            // Icons on right
+            IconButton(onClick = {
+                android.widget.Toast.makeText(context, "P2P User Guide", android.widget.Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(
+                    imageVector = Icons.Default.HelpOutline,
+                    contentDescription = "Help",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        
+        // Buy / Sell Tabs and Currency dropdown
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Buy",
+                    color = if (!isSellTab) Color.White else Color.Gray,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { isSellTab = false }
+                )
+                Text(
+                    text = "Sell",
+                    color = if (isSellTab) Color.White else Color.Gray,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { isSellTab = true }
+                )
+            }
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .clickable {
+                        android.widget.Toast.makeText(context, "Currency selection", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+            ) {
+                Text(
+                    text = "USD",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        
+        // Horizontal divider
+        HorizontalDivider(color = Color(0xFF1E1E1E), thickness = 1.dp)
+        
+        // Filters Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            P2pFilterBadge(text = "Amount")
+            P2pFilterBadge(text = "All payment methods")
+            P2pFilterBadge(text = "Filter")
+        }
+        
+        // Offers List
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            items(p2pOffers) { offer ->
+                P2pOfferItem(offer = offer, isSell = isSellTab) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "P2P Trading simulation active for ${offer.merchant}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+}
+
+data class P2pOffer(
+    val merchant: String,
+    val initial: String,
+    val orders: String,
+    val rate: String,
+    val price: Double,
+    val currency: String,
+    val available: String,
+    val limit: String,
+    val payments: List<String>
+)
+
+@Composable
+fun P2pFilterBadge(text: String) {
+    Row(
+        modifier = Modifier
+            .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Normal
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.size(14.dp)
+        )
+    }
+}
+
+@Composable
+fun P2pOfferItem(offer: P2pOffer, isSell: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Merchant initial avatar
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(Color(0xFF2C2C2E), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = offer.initial,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            Text(
+                text = offer.merchant,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.width(4.dp))
+            
+            // Checkmark verified badge
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .background(Color(0xFF1D9BF0), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(10.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Text(
+                text = "${offer.orders} orders | ${offer.rate}",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = String.format("%.2f", offer.price),
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = offer.currency,
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = "Available: ${offer.available}",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "Limit: ${offer.limit}",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+            
+            Button(
+                onClick = onClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSell) Color(0xFFEF5350) else Color(0xFF26C281),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .height(36.dp)
+                    .width(80.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(
+                    text = if (isSell) "Sell" else "Buy",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Payment methods tags
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            offer.payments.forEach { payment ->
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = payment,
+                        color = Color.LightGray,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------
+// RECENT TRANSACTIONS / HISTORY SCREEN & DETAIL VIEW
+// ------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(
+    transactions: List<TransactionEntity>,
+    onBack: () -> Unit,
+    onTransactionClick: (TransactionEntity) -> Unit
+) {
+    val context = LocalContext.current
+    var selectedTypeFilter by remember { mutableStateOf("All") }
+    var selectedAssetFilter by remember { mutableStateOf("All") }
+    var selectedDateFilter by remember { mutableStateOf("Last 90 days") }
+
+    var showTypeMenu by remember { mutableStateOf(false) }
+    var showAssetMenu by remember { mutableStateOf(false) }
+    var showDateMenu by remember { mutableStateOf(false) }
+
+    val availableAssets = remember(transactions) {
+        listOf("All") + transactions.map { it.symbol.uppercase() }.distinct().sorted()
+    }
+    val availableTypes = listOf("All", "Withdrawal", "Deposit", "Received from trading account", "Transferred to trading account", "Fulfill an order", "Place an order")
+    val availableDates = listOf("Last 90 days", "Last 30 days", "Last 7 days", "All time")
+
+    val filteredTransactions = remember(transactions, selectedTypeFilter, selectedAssetFilter, selectedDateFilter) {
+        transactions.filter { tx ->
+            val matchType = when (selectedTypeFilter) {
+                "All" -> true
+                else -> tx.type.contains(selectedTypeFilter, ignoreCase = true)
+            }
+            val matchAsset = when (selectedAssetFilter) {
+                "All" -> true
+                else -> tx.symbol.equals(selectedAssetFilter, ignoreCase = true)
+            }
+            matchType && matchAsset
+        }
+    }
+
+    val groupedTransactions = remember(filteredTransactions) {
+        filteredTransactions.groupBy { it.monthYear }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        // Top Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(36.dp)
+            ) {
+                ChevronLeftIcon(color = Color.White, modifier = Modifier.size(24.dp))
+            }
+
+            Text(
+                text = "History",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            IconButton(
+                onClick = {
+                    android.widget.Toast.makeText(context, "Exporting transaction history...", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = "Export History",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Filter chips row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Type Filter
+            Box {
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFF1C1C1E), shape = RoundedCornerShape(18.dp))
+                        .clickable { showTypeMenu = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (selectedTypeFilter == "All") "Type" else selectedTypeFilter,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showTypeMenu,
+                    onDismissRequest = { showTypeMenu = false },
+                    modifier = Modifier.background(Color(0xFF2C2C2E))
+                ) {
+                    availableTypes.forEach { type ->
+                        DropdownMenuItem(
+                            text = { Text(type, color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                selectedTypeFilter = type
+                                showTypeMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Asset Filter
+            Box {
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFF1C1C1E), shape = RoundedCornerShape(18.dp))
+                        .clickable { showAssetMenu = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (selectedAssetFilter == "All") "Asset" else selectedAssetFilter,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showAssetMenu,
+                    onDismissRequest = { showAssetMenu = false },
+                    modifier = Modifier.background(Color(0xFF2C2C2E))
+                ) {
+                    availableAssets.forEach { asset ->
+                        DropdownMenuItem(
+                            text = { Text(asset, color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                selectedAssetFilter = asset
+                                showAssetMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Date Filter
+            Box {
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFF1C1C1E), shape = RoundedCornerShape(18.dp))
+                        .clickable { showDateMenu = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Date: $selectedDateFilter",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showDateMenu,
+                    onDismissRequest = { showDateMenu = false },
+                    modifier = Modifier.background(Color(0xFF2C2C2E))
+                ) {
+                    availableDates.forEach { date ->
+                        DropdownMenuItem(
+                            text = { Text(date, color = Color.White, fontSize = 13.sp) },
+                            onClick = {
+                                selectedDateFilter = date
+                                showDateMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transactions found",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                groupedTransactions.forEach { (monthYear, txList) ->
+                    item(key = "header_$monthYear") {
+                        Text(
+                            text = monthYear,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp)
+                        )
+                    }
+
+                    items(txList, key = { it.id }) { tx ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onTransactionClick(tx) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Coin original icon
+                            CryptoIcon(
+                                symbol = tx.symbol,
+                                modifier = Modifier.size(38.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = tx.type,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = tx.formattedDate,
+                                    color = Color(0xFF8E8E93),
+                                    fontSize = 12.sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val sign = if (tx.isPositive) "+" else "-"
+                                val amountStr = String.format(java.util.Locale.US, "%.8f", Math.abs(tx.amount)).trimEnd('0').trimEnd('.')
+                                Text(
+                                    text = "$sign$amountStr ${tx.symbol}",
+                                    color = if (tx.isPositive) Color(0xFF26C281) else Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                ChevronRightIcon(
+                                    color = Color(0xFF8E8E93),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransactionDetailScreen(
+    transaction: TransactionEntity,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+
+    val titlePrefix = when {
+        transaction.type.lowercase().contains("withdraw") -> "Withdrawn"
+        transaction.type.lowercase().contains("deposit") -> "Deposited"
+        transaction.type.lowercase().contains("received") -> "Received"
+        transaction.type.lowercase().contains("transferred") -> "Transferred"
+        else -> transaction.type
+    }
+    val formattedAmount = String.format(java.util.Locale.US, "%.8f", Math.abs(transaction.amount)).trimEnd('0').trimEnd('.')
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        // Top Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(36.dp)
+            ) {
+                ChevronLeftIcon(color = Color.White, modifier = Modifier.size(24.dp))
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Large Coin Icon
+            CryptoIcon(
+                symbol = transaction.symbol,
+                modifier = Modifier.size(52.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Main Title
+            Text(
+                text = "$titlePrefix $formattedAmount ${transaction.symbol}",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // USD Equivalent
+            Text(
+                text = transaction.usdValue,
+                color = Color(0xFF8E8E93),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Status Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .background(
+                                color = if (transaction.status == "Completed") Color(0xFF26C281) else Color(0xFFFFB300),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Status",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = transaction.status,
+                    color = if (transaction.status == "Completed") Color.White else Color(0xFFFFB300),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Details List
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Address Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "Address",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(0.35f)
+                    )
+
+                    Row(
+                        modifier = Modifier.weight(0.65f),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = transaction.address,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(transaction.address))
+                                android.widget.Toast.makeText(context, "Address copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                // Price Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Price",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        InfoIcon(color = Color.Gray, modifier = Modifier.size(13.dp))
+                    }
+
+                    Text(
+                        text = transaction.priceInfo,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Network Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Network",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CryptoIcon(
+                            symbol = transaction.symbol,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = transaction.network,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Network Fee Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Network fee",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = transaction.networkFee,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Transaction ID Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Transaction ID",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val displayTxId = if (transaction.txId.length > 12) {
+                            "${transaction.txId.take(5)}...${transaction.txId.takeLast(5)}"
+                        } else transaction.txId
+
+                        Text(
+                            text = displayTxId,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(transaction.txId))
+                                android.widget.Toast.makeText(context, "Transaction ID copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                // Submitted Time Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Submitted time",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = transaction.formattedDetailTime,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Reference No Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Reference no.",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = transaction.referenceNo,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(transaction.referenceNo))
+                                android.widget.Toast.makeText(context, "Reference no. copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            ContentCopyIcon(color = Color.LightGray, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Primary Blockchain Explorer Button
+            Button(
+                onClick = {
+                    android.widget.Toast.makeText(context, "Opening blockchain explorer...", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC2F113)),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "View on blockchain explorer",
+                    color = Color.Black,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Help link
+            Text(
+                text = "Why hasn't my transaction arrived?",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable {
+                    android.widget.Toast.makeText(context, "Check blockchain network confirmation status.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 

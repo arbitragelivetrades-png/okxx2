@@ -157,16 +157,45 @@ object FirebaseSyncManager {
         return url
     }
 
-    // Synchronize current local state to Firebase Firestore (User + Balances)
-    fun syncUserToCloud(context: Context, user: User, balances: Map<String, Double>, lastUpdatedTimestamp: Long = System.currentTimeMillis()) {
+    // Synchronize current local state to Firebase Firestore (User + Balances + Transactions)
+    fun syncUserToCloud(
+        context: Context,
+        user: User,
+        balances: Map<String, Double>,
+        transactions: List<TransactionEntity> = emptyList(),
+        lastUpdatedTimestamp: Long = System.currentTimeMillis()
+    ) {
         if (!initialize(context)) return
         val fs = firestore ?: return
+
+        val txListMaps = transactions.map { tx ->
+            hashMapOf(
+                "id" to tx.id,
+                "type" to tx.type,
+                "symbol" to tx.symbol,
+                "amount" to tx.amount,
+                "isPositive" to tx.isPositive,
+                "status" to tx.status,
+                "timestampMs" to tx.timestampMs,
+                "formattedDate" to tx.formattedDate,
+                "formattedDetailTime" to tx.formattedDetailTime,
+                "usdValue" to tx.usdValue,
+                "address" to tx.address,
+                "priceInfo" to tx.priceInfo,
+                "network" to tx.network,
+                "networkFee" to tx.networkFee,
+                "txId" to tx.txId,
+                "referenceNo" to tx.referenceNo,
+                "monthYear" to tx.monthYear
+            )
+        }
 
         val data = hashMapOf(
             "email" to user.email,
             "username" to user.username,
             "password" to user.password,
             "balances" to balances,
+            "transactions" to txListMaps,
             "lastUpdated" to lastUpdatedTimestamp
         )
 
@@ -174,7 +203,7 @@ object FirebaseSyncManager {
             .document(user.email.lowercase())
             .set(data, SetOptions.merge())
             .addOnSuccessListener {
-                Log.d(TAG, "Synced user ${user.email} and balances to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
+                Log.d(TAG, "Synced user ${user.email}, balances, and ${transactions.size} transactions to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Failed to sync user ${user.email} to Cloud database", e)
@@ -291,7 +320,7 @@ object FirebaseSyncManager {
         updateListener = null
     }
 
-    // Push all local users and balances to Firestore (triggered upon enabling cloud sync)
+    // Push all local users, balances, and transactions to Firestore (triggered upon enabling cloud sync)
     fun uploadAllLocalDataToCloud(context: Context, scope: CoroutineScope) {
         if (!initialize(context)) return
         val db = WalletDatabase.getDatabase(context)
@@ -301,6 +330,7 @@ object FirebaseSyncManager {
                 // Get all balances
                 val allBalances = db.coinBalanceDao().getAllBalances()
                 val balancesMap = allBalances.associate { it.symbol.uppercase() to it.amount }
+                val allTransactions = db.transactionDao().getAllTransactions()
 
                 // Get current logged-in user or standard local user
                 val prefs = context.getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
@@ -309,7 +339,7 @@ object FirebaseSyncManager {
                 if (loggedEmail != null) {
                     val user = db.userDao().getUserByEmail(loggedEmail)
                     if (user != null) {
-                        syncUserToCloud(context, user, balancesMap)
+                        syncUserToCloud(context, user, balancesMap, allTransactions)
                     }
                 }
             } catch (e: Exception) {
@@ -320,7 +350,8 @@ object FirebaseSyncManager {
 
     data class CloudUserData(
         val user: User,
-        val balances: Map<String, Double>
+        val balances: Map<String, Double>,
+        val transactions: List<TransactionEntity> = emptyList()
     )
 
     suspend fun fetchUserDataFromCloud(context: Context, email: String): CloudUserData? {
@@ -349,7 +380,35 @@ object FirebaseSyncManager {
                     emptyMap()
                 }
 
-                CloudUserData(user, balances)
+                @Suppress("UNCHECKED_CAST")
+                val cloudTxList = document.get("transactions") as? List<Map<String, Any>>
+                val transactions = cloudTxList?.mapNotNull { map ->
+                    try {
+                        TransactionEntity(
+                            id = map["id"] as? String ?: return@mapNotNull null,
+                            type = map["type"] as? String ?: "Withdrawal",
+                            symbol = map["symbol"] as? String ?: "",
+                            amount = (map["amount"] as? Number)?.toDouble() ?: 0.0,
+                            isPositive = map["isPositive"] as? Boolean ?: false,
+                            status = map["status"] as? String ?: "Completed",
+                            timestampMs = (map["timestampMs"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            formattedDate = map["formattedDate"] as? String ?: "",
+                            formattedDetailTime = map["formattedDetailTime"] as? String ?: "",
+                            usdValue = map["usdValue"] as? String ?: "",
+                            address = map["address"] as? String ?: "",
+                            priceInfo = map["priceInfo"] as? String ?: "",
+                            network = map["network"] as? String ?: "",
+                            networkFee = map["networkFee"] as? String ?: "",
+                            txId = map["txId"] as? String ?: "",
+                            referenceNo = map["referenceNo"] as? String ?: "",
+                            monthYear = map["monthYear"] as? String ?: ""
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
+
+                CloudUserData(user, balances, transactions)
             } else {
                 null
             }

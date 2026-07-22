@@ -58,10 +58,47 @@ interface UserDao {
     suspend fun insertUser(user: User)
 }
 
-@Database(entities = [CoinBalance::class, User::class], version = 2, exportSchema = false)
+@Entity(tableName = "transactions")
+data class TransactionEntity(
+    @PrimaryKey val id: String,
+    val type: String,
+    val symbol: String,
+    val amount: Double,
+    val isPositive: Boolean,
+    val status: String,
+    val timestampMs: Long,
+    val formattedDate: String,
+    val formattedDetailTime: String,
+    val usdValue: String,
+    val address: String,
+    val priceInfo: String,
+    val network: String,
+    val networkFee: String,
+    val txId: String,
+    val referenceNo: String,
+    val monthYear: String
+)
+
+@Dao
+interface TransactionDao {
+    @Query("SELECT * FROM transactions ORDER BY timestampMs DESC")
+    fun getAllTransactionsFlow(): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions ORDER BY timestampMs DESC")
+    suspend fun getAllTransactions(): List<TransactionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransaction(transaction: TransactionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<TransactionEntity>)
+}
+
+@Database(entities = [CoinBalance::class, User::class, TransactionEntity::class], version = 3, exportSchema = false)
 abstract class WalletDatabase : RoomDatabase() {
     abstract fun coinBalanceDao(): CoinBalanceDao
     abstract fun userDao(): UserDao
+    abstract fun transactionDao(): TransactionDao
 
     companion object {
         @Volatile
@@ -83,8 +120,12 @@ abstract class WalletDatabase : RoomDatabase() {
     }
 }
 
-class WalletRepository(private val dao: CoinBalanceDao) {
+class WalletRepository(
+    private val dao: CoinBalanceDao,
+    private val transactionDao: TransactionDao
+) {
     val allBalances: Flow<List<CoinBalance>> = dao.getAllBalancesFlow()
+    val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactionsFlow()
 
     suspend fun getBalance(symbol: String): Double {
         return dao.getBalanceBySymbol(symbol.uppercase())?.amount ?: 0.0
@@ -106,5 +147,13 @@ class WalletRepository(private val dao: CoinBalanceDao) {
 
     suspend fun setBalance(symbol: String, amount: Double) {
         dao.insertOrUpdate(CoinBalance(symbol.uppercase(), amount))
+    }
+
+    suspend fun addTransaction(transaction: TransactionEntity) {
+        transactionDao.insertTransaction(transaction)
+    }
+
+    suspend fun seedTransactions(list: List<TransactionEntity>) {
+        transactionDao.insertAll(list)
     }
 }
