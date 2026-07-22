@@ -211,7 +211,7 @@
                             <thead class="bg-black/40 text-gray-400 text-xs uppercase tracking-wider text-left font-semibold">
                                 <tr>
                                     <th class="px-6 py-4">User Profile</th>
-                                    <th class="px-6 py-4">Sign-in Credentials</th>
+                                    <th class="px-6 py-4">Account Status</th>
                                     <th class="px-6 py-4">Primary Balances</th>
                                     <th class="px-6 py-4">Est. Value (USD)</th>
                                     <th class="px-6 py-4">Last Synced</th>
@@ -435,8 +435,8 @@
                 <div class="bg-black/30 px-6 py-4 border-b border-darkBorder flex justify-between items-center">
                     <div>
                         <h3 class="display-font text-lg font-bold text-white flex items-center space-x-2">
-                            <i class="fa-solid fa-pen-to-square text-okxGreen"></i>
-                            <span>Adjust User Balances</span>
+                            <i class="fa-solid fa-coins text-okxGreen"></i>
+                            <span>Manage User Balances</span>
                         </h3>
                         <p id="editBalancesSubtitle" class="text-xs text-gray-400 mt-0.5">user@example.com</p>
                     </div>
@@ -445,79 +445,139 @@
                     </button>
                 </div>
 
-                <!-- Body (List of input assets) -->
+                <!-- Form -->
                 <form id="editBalancesForm">
                     <input type="hidden" id="editBalancesEmail">
                     
-                    <div class="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <!-- SOL -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>Solana (SOL)</span>
-                                    <span id="current_SOL" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <div class="relative">
-                                    <input type="number" step="any" id="balance_SOL" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                    <div class="px-6 py-5 max-h-[70vh] overflow-y-auto space-y-5">
+                        
+                        <!-- Mode Toggle -->
+                        <div class="flex rounded-xl bg-black p-1 border border-darkBorder">
+                            <button type="button" id="tabAddDeposit" class="flex-1 py-2 text-xs font-bold rounded-lg bg-darkBorder text-okxGreen transition-all">
+                                <i class="fa-solid fa-circle-plus mr-1"></i> Add / Subtract Amount
+                            </button>
+                            <button type="button" id="tabDirectEdit" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition-all">
+                                <i class="fa-solid fa-sliders mr-1"></i> Direct Total Edit
+                            </button>
+                        </div>
+
+                        <!-- Panel 1: Add / Subtract Amount (Default) -->
+                        <div id="panelAddDeposit" class="space-y-4">
+                            <div class="p-3 bg-okxGreen/10 border border-okxGreen/20 rounded-xl text-xs text-gray-300">
+                                <i class="fa-solid fa-circle-info text-okxGreen mr-1.5"></i>
+                                Specify an amount to add or subtract. This will automatically record a corresponding <strong class="text-white">Deposit</strong> or <strong class="text-white">Withdrawal</strong> entry in the user's mobile app transaction history.
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">Select Asset</label>
+                                    <select id="adjustCoinSelect" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                                        <option value="SOL">Solana (SOL)</option>
+                                        <option value="USDT">Tether (USDT)</option>
+                                        <option value="BTC">Bitcoin (BTC)</option>
+                                        <option value="ETH">Ethereum (ETH)</option>
+                                        <option value="BNB">BNB Coin (BNB)</option>
+                                        <option value="TRX">TRON (TRX)</option>
+                                        <option value="USDG">USDG Token</option>
+                                        <option value="USDC">USD Coin (USDC)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">Action Type</label>
+                                    <select id="adjustActionType" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                                        <option value="add">➕ Deposit / Add Funds (+)</option>
+                                        <option value="subtract">➖ Withdrawal / Deduct Funds (-)</option>
+                                    </select>
                                 </div>
                             </div>
-                            <!-- USDT -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>Tether (USDT)</span>
-                                    <span id="current_USDT" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <input type="number" step="any" id="balance_USDT" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+
+                            <div class="bg-black/50 p-3 rounded-xl border border-darkBorder flex justify-between items-center text-xs">
+                                <span class="text-gray-400">Current Balance:</span>
+                                <span id="currentAssetBalancePreview" class="font-mono text-okxGreen font-bold">0.00 SOL</span>
                             </div>
-                            <!-- BTC -->
+
                             <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>Bitcoin (BTC)</span>
-                                    <span id="current_BTC" class="text-[10px] text-okxGreen font-mono">0.0000</span>
-                                </label>
-                                <input type="number" step="any" id="balance_BTC" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+                                <label class="block text-xs font-semibold text-gray-400 mb-1.5">Amount to Add / Subtract</label>
+                                <div class="relative">
+                                    <input type="number" step="any" min="0" id="adjustAmountInput" placeholder="Enter amount (e.g. 100.00)" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
                             </div>
-                            <!-- ETH -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>Ethereum (ETH)</span>
-                                    <span id="current_ETH" class="text-[10px] text-okxGreen font-mono">0.0000</span>
-                                </label>
-                                <input type="number" step="any" id="balance_ETH" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
-                            </div>
-                            <!-- BNB -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>BNB Coin (BNB)</span>
-                                    <span id="current_BNB" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <input type="number" step="any" id="balance_BNB" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
-                            </div>
-                            <!-- TRX -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>TRON (TRX)</span>
-                                    <span id="current_TRX" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <input type="number" step="any" id="balance_TRX" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
-                            </div>
-                            <!-- USDG -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>USDG Token</span>
-                                    <span id="current_USDG" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <input type="number" step="any" id="balance_USDG" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
-                            </div>
-                            <!-- USDC -->
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5 flex items-center justify-between">
-                                    <span>USD Coin (USDC)</span>
-                                    <span id="current_USDC" class="text-[10px] text-okxGreen font-mono">0.00</span>
-                                </label>
-                                <input type="number" step="any" id="balance_USDC" class="w-full bg-black border border-darkBorder rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-okxGreen">
+
+                            <div id="newBalancePreviewBox" class="bg-black/70 p-3.5 rounded-xl border border-darkBorder/80 space-y-1">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-gray-400">New Balance after change:</span>
+                                    <span id="newAssetBalancePreview" class="font-mono text-white font-bold">0.00 SOL</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-gray-500">
+                                    <span>Transaction Log Entry:</span>
+                                    <span id="txTypePreview" class="font-semibold text-okxGreen">Deposit (+0 SOL)</span>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Panel 2: Direct Total Balance Edit -->
+                        <div id="panelDirectEdit" class="hidden space-y-4">
+                            <p class="text-xs text-gray-400">Directly override total balances for each coin:</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>Solana (SOL)</span>
+                                        <span id="current_SOL" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_SOL" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>Tether (USDT)</span>
+                                        <span id="current_USDT" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_USDT" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>Bitcoin (BTC)</span>
+                                        <span id="current_BTC" class="text-[10px] text-okxGreen font-mono">0.0000</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_BTC" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>Ethereum (ETH)</span>
+                                        <span id="current_ETH" class="text-[10px] text-okxGreen font-mono">0.0000</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_ETH" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>BNB Coin (BNB)</span>
+                                        <span id="current_BNB" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_BNB" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>TRON (TRX)</span>
+                                        <span id="current_TRX" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_TRX" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>USDG Token</span>
+                                        <span id="current_USDG" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_USDG" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                                        <span>USD Coin (USDC)</span>
+                                        <span id="current_USDC" class="text-[10px] text-okxGreen font-mono">0.00</span>
+                                    </label>
+                                    <input type="number" step="any" id="balance_USDC" class="w-full bg-black border border-darkBorder rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-okxGreen font-mono">
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- Actions Footer -->
@@ -526,7 +586,7 @@
                             Cancel
                         </button>
                         <button type="submit" class="bg-okxGreen text-black text-xs font-bold px-5 py-2.5 rounded-lg hover:bg-white transition-colors">
-                            Save Balances
+                            Process Balance Adjustment
                         </button>
                     </div>
                 </form>
@@ -735,34 +795,132 @@
             });
         });
 
-        // Edit balances form submit
+        // Tab switching and live preview state
+        let activeEditMode = "addDeposit"; // "addDeposit" or "directEdit"
+
+        document.getElementById('tabAddDeposit')?.addEventListener('click', () => {
+            activeEditMode = "addDeposit";
+            document.getElementById('tabAddDeposit').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-darkBorder text-okxGreen transition-all";
+            document.getElementById('tabDirectEdit').className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition-all";
+            document.getElementById('panelAddDeposit').classList.remove('hidden');
+            document.getElementById('panelDirectEdit').classList.add('hidden');
+        });
+
+        document.getElementById('tabDirectEdit')?.addEventListener('click', () => {
+            activeEditMode = "directEdit";
+            document.getElementById('tabDirectEdit').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-darkBorder text-okxGreen transition-all";
+            document.getElementById('tabAddDeposit').className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition-all";
+            document.getElementById('panelDirectEdit').classList.remove('hidden');
+            document.getElementById('panelAddDeposit').classList.add('hidden');
+        });
+
+        function updateAddDepositPreview() {
+            const email = document.getElementById('editBalancesEmail').value;
+            const user = usersData.find(u => u.email === email);
+            const coin = document.getElementById('adjustCoinSelect').value;
+            const action = document.getElementById('adjustActionType').value;
+            const amount = parseFloat(document.getElementById('adjustAmountInput').value) || 0;
+
+            const currentBalance = user && user.balances && user.balances[coin] !== undefined 
+                ? parseFloat(user.balances[coin]) 
+                : 0.0;
+
+            document.getElementById('currentAssetBalancePreview').innerText = `${currentBalance.toFixed(4)} ${coin}`;
+
+            const isAdd = action === "add";
+            const newBalance = isAdd ? currentBalance + amount : Math.max(0, currentBalance - amount);
+
+            document.getElementById('newAssetBalancePreview').innerText = `${newBalance.toFixed(4)} ${coin}`;
+            document.getElementById('txTypePreview').innerText = isAdd 
+                ? `Deposit (+${amount} ${coin})` 
+                : `Withdrawal (-${amount} ${coin})`;
+            document.getElementById('txTypePreview').className = `font-semibold ${isAdd ? "text-okxGreen" : "text-red-400"}`;
+        }
+
+        document.getElementById('adjustCoinSelect')?.addEventListener('change', updateAddDepositPreview);
+        document.getElementById('adjustActionType')?.addEventListener('change', updateAddDepositPreview);
+        document.getElementById('adjustAmountInput')?.addEventListener('input', updateAddDepositPreview);
+
+        // Edit balances form submit (Handles Add/Subtract deposit logging & Direct edits)
         document.getElementById('editBalancesForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('editBalancesEmail').value;
             if (!db || !email) return;
 
-            const updatedBalances = {
-                "SOL": parseFloat(document.getElementById('balance_SOL').value) || 0.0,
-                "USDT": parseFloat(document.getElementById('balance_USDT').value) || 0.0,
-                "BTC": parseFloat(document.getElementById('balance_BTC').value) || 0.0,
-                "ETH": parseFloat(document.getElementById('balance_ETH').value) || 0.0,
-                "BNB": parseFloat(document.getElementById('balance_BNB').value) || 0.0,
-                "TRX": parseFloat(document.getElementById('balance_TRX').value) || 0.0,
-                "USDG": parseFloat(document.getElementById('balance_USDG').value) || 0.0,
-                "USDC": parseFloat(document.getElementById('balance_USDC').value) || 0.0
-            };
+            const userDocRef = doc(db, "users", email.toLowerCase());
+            const user = usersData.find(u => u.email === email);
+            const currentBalances = user && user.balances ? { ...user.balances } : {};
+            const existingTxs = user && Array.isArray(user.transactions) ? [ ...user.transactions ] : [];
 
-            try {
-                const userDocRef = doc(db, "users", email.toLowerCase());
-                await updateDoc(userDocRef, {
-                    balances: updatedBalances,
-                    lastUpdated: Date.now()
-                });
-                modal.classList.add('hidden');
-                showNotification(`Success: Balances updated for ${email}`, "success");
-            } catch (error) {
-                console.error("Error saving balances to Firebase:", error);
-                alert("Could not update database document: " + error.message);
+            if (activeEditMode === "addDeposit") {
+                const coin = document.getElementById('adjustCoinSelect').value;
+                const action = document.getElementById('adjustActionType').value;
+                const amount = parseFloat(document.getElementById('adjustAmountInput').value) || 0;
+
+                if (amount <= 0) {
+                    alert("Please enter a valid amount greater than 0.");
+                    return;
+                }
+
+                const isAdd = action === "add";
+                const currentVal = parseFloat(currentBalances[coin]) || 0.0;
+                const newVal = isAdd ? currentVal + amount : Math.max(0, currentVal - amount);
+                currentBalances[coin] = newVal;
+
+                // Create corresponding Deposit / Withdrawal transaction log entry
+                const now = new Date();
+                const formattedDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                
+                const newTx = {
+                    id: "tx_" + Date.now(),
+                    type: isAdd ? "Deposit" : "Withdrawal",
+                    symbol: coin,
+                    amount: amount,
+                    isPositive: isAdd,
+                    timestamp: Date.now(),
+                    date: formattedDate,
+                    status: "Completed"
+                };
+
+                existingTxs.unshift(newTx);
+
+                try {
+                    await updateDoc(userDocRef, {
+                        balances: currentBalances,
+                        transactions: existingTxs,
+                        lastUpdated: Date.now()
+                    });
+                    modal.classList.add('hidden');
+                    showNotification(`Success: ${isAdd ? "Deposit" : "Withdrawal"} of ${amount} ${coin} logged for ${email}`, "success");
+                } catch (error) {
+                    console.error("Error updating user balance/transactions:", error);
+                    alert("Could not update database document: " + error.message);
+                }
+
+            } else {
+                // Direct Total Balance Edit Mode
+                const updatedBalances = {
+                    "SOL": parseFloat(document.getElementById('balance_SOL').value) || 0.0,
+                    "USDT": parseFloat(document.getElementById('balance_USDT').value) || 0.0,
+                    "BTC": parseFloat(document.getElementById('balance_BTC').value) || 0.0,
+                    "ETH": parseFloat(document.getElementById('balance_ETH').value) || 0.0,
+                    "BNB": parseFloat(document.getElementById('balance_BNB').value) || 0.0,
+                    "TRX": parseFloat(document.getElementById('balance_TRX').value) || 0.0,
+                    "USDG": parseFloat(document.getElementById('balance_USDG').value) || 0.0,
+                    "USDC": parseFloat(document.getElementById('balance_USDC').value) || 0.0
+                };
+
+                try {
+                    await updateDoc(userDocRef, {
+                        balances: updatedBalances,
+                        lastUpdated: Date.now()
+                    });
+                    modal.classList.add('hidden');
+                    showNotification(`Success: Balances updated for ${email}`, "success");
+                } catch (error) {
+                    console.error("Error saving balances to Firebase:", error);
+                    alert("Could not update database document: " + error.message);
+                }
             }
         });
 
@@ -923,8 +1081,8 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="block text-gray-400 text-xs font-mono select-all select-none hover:text-white transition-colors cursor-pointer" title="Click to view/copy password">
-                            <i class="fa-solid fa-key mr-1.5 text-gray-600"></i> ${user.password || "••••••••"}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-okxGreen border border-emerald-800/60">
+                            <i class="fa-solid fa-circle-check mr-1.5 text-[10px]"></i> Active
                         </span>
                     </td>
                     <td class="px-6 py-4">
@@ -966,9 +1124,9 @@
 
                     <div class="grid grid-cols-2 gap-3 pt-1">
                         <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
-                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Credentials</span>
-                            <div class="text-[11px] font-mono text-gray-300 select-all">
-                                <i class="fa-solid fa-key mr-1 text-gray-600"></i> ${user.password || "••••••••"}
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Status</span>
+                            <div class="text-[11px] font-semibold text-okxGreen flex items-center">
+                                <i class="fa-solid fa-circle-check mr-1 text-okxGreen"></i> Active User
                             </div>
                         </div>
                         <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
@@ -1002,7 +1160,13 @@
 
             document.getElementById('editBalancesEmail').value = user.email;
             document.getElementById('editBalancesSubtitle').innerText = `${user.username || "User"} (${user.email})`;
+            document.getElementById('adjustAmountInput').value = '';
             
+            // Default to Add / Deposit tab
+            activeEditMode = "addDeposit";
+            const tabBtn = document.getElementById('tabAddDeposit');
+            if (tabBtn) tabBtn.click();
+
             // Set current balance helpers
             const coins = ["SOL", "USDT", "BTC", "ETH", "BNB", "TRX", "USDG", "USDC"];
             coins.forEach(coin => {
@@ -1011,6 +1175,7 @@
                 document.getElementById(`balance_${coin}`).value = balanceVal > 0 ? balanceVal : '';
             });
 
+            updateAddDepositPreview();
             modal.classList.remove('hidden');
         }
 
