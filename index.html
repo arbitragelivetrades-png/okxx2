@@ -1271,15 +1271,23 @@
                        (user.username && user.username.toLowerCase().includes(query));
             });
 
+            // Helper function to extract explicit account creation time
+            const getCreationTime = (u) => {
+                if (u.createdTimestamp) return Number(u.createdTimestamp);
+                if (u.createdAt) return Number(u.createdAt);
+                if (u.timestamp) return Number(u.timestamp);
+                return 0; // Legacy accounts without explicit creation timestamp
+            };
+
             // Sort accounts so newly created ones strictly appear at the top
             filtered.sort((a, b) => {
-                const timeA = a.createdTimestamp || a.createdAt || a.timestamp || 0;
-                const timeB = b.createdTimestamp || b.createdAt || b.timestamp || 0;
+                const timeA = getCreationTime(a);
+                const timeB = getCreationTime(b);
                 if (timeA !== timeB) {
                     return timeB - timeA; // Newest creation timestamp on top
                 }
-                const lastA = a.lastUpdated || 0;
-                const lastB = b.lastUpdated || 0;
+                const lastA = Number(a.lastUpdated) || 0;
+                const lastB = Number(b.lastUpdated) || 0;
                 return lastB - lastA;
             });
             
@@ -1315,13 +1323,13 @@
                     : `<span class="text-gray-500 italic text-xs">No active assets</span>`;
 
                 const formattedDate = user.lastUpdated 
-                    ? new Date(user.lastUpdated).toLocaleString() 
+                    ? new Date(Number(user.lastUpdated)).toLocaleString() 
                     : "Never";
 
-                const createdTime = user.createdTimestamp || user.createdAt || user.timestamp || user.lastUpdated;
-                const formattedCreatedDate = createdTime 
+                const createdTime = getCreationTime(user);
+                const formattedCreatedDate = createdTime > 0 
                     ? new Date(createdTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
-                    : "Recently";
+                    : (user.lastUpdated ? new Date(Number(user.lastUpdated)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Initial User");
 
                 // --- 1. Populate Desktop Table ---
                 const tr = document.createElement('tr');
@@ -1343,8 +1351,16 @@
                             <i class="fa-solid fa-circle-check mr-1.5 text-[10px]"></i> Active
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-gray-300 text-xs font-mono">
-                        ${formattedCreatedDate}
+                    <td class="px-6 py-4 whitespace-nowrap text-xs">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded-md bg-okxGreen/10 text-okxGreen border border-okxGreen/30 flex items-center justify-center text-[10px]">
+                                <i class="fa-regular fa-calendar-check"></i>
+                            </div>
+                            <div>
+                                <span class="block text-white font-mono font-semibold text-xs">${formattedCreatedDate}</span>
+                                <span class="block text-[10px] text-gray-500">${createdTime > 0 ? "Registered Account" : "Synced Account"}</span>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex flex-wrap max-w-xs">${balanceStringHtml}</div>
