@@ -3,6 +3,7 @@ package com.example
 import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -56,6 +57,15 @@ interface UserDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
+
+    @Delete
+    suspend fun deleteUser(user: User)
+
+    @Query("DELETE FROM users WHERE LOWER(email) = LOWER(:email)")
+    suspend fun deleteUserByEmail(email: String)
+
+    @Query("DELETE FROM users")
+    suspend fun clearAllUsers()
 }
 
 @Entity(tableName = "transactions")

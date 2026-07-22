@@ -199,19 +199,31 @@ object FirebaseSyncManager {
             "lastUpdated" to lastUpdatedTimestamp
         )
 
-        fs.collection("users")
-            .document(user.email.lowercase())
-            .set(data, SetOptions.merge())
-            .addOnSuccessListener {
-                Log.d(TAG, "Synced user ${user.email}, balances, and ${transactions.size} transactions to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
+        val docRef = fs.collection("users").document(user.email.lowercase())
+        docRef.get().addOnSuccessListener { snapshot ->
+            if (!snapshot.exists() || snapshot.getLong("createdTimestamp") == null) {
+                data["createdTimestamp"] = System.currentTimeMillis()
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to sync user ${user.email} to Cloud database", e)
-            }
+            docRef.set(data, SetOptions.merge())
+                .addOnSuccessListener {
+                    Log.d(TAG, "Synced user ${user.email}, balances, and ${transactions.size} transactions to Cloud database successfully with timestamp $lastUpdatedTimestamp.")
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to sync user ${user.email} to Cloud database", e)
+                }
+        }.addOnFailureListener {
+            data["createdTimestamp"] = System.currentTimeMillis()
+            docRef.set(data, SetOptions.merge())
+        }
     }
 
     // Start listening in real-time to balances of the logged-in user from Firestore
-    fun startRealtimeSync(context: Context, userEmail: String, onBalanceUpdated: (Map<String, Double>, Long) -> Unit) {
+    fun startRealtimeSync(
+        context: Context, 
+        userEmail: String, 
+        onBalanceUpdated: (Map<String, Double>, Long) -> Unit,
+        onUserBanned: (() -> Unit)? = null
+    ) {
         if (!initialize(context)) return
         val fs = firestore ?: return
 
@@ -241,6 +253,9 @@ object FirebaseSyncManager {
                         Log.d(TAG, "Real-time sync: Received updated balances from Cloud: $convertedBalances, lastUpdated: $lastUpdated")
                         onBalanceUpdated(convertedBalances, lastUpdated)
                     }
+                } else if (snapshot != null && !snapshot.exists()) {
+                    Log.w(TAG, "Real-time sync: User document for $userEmail was deleted or banned in Cloud Firestore.")
+                    onUserBanned?.invoke()
                 }
             }
     }

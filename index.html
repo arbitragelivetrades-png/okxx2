@@ -212,6 +212,7 @@
                                 <tr>
                                     <th class="px-6 py-4">User Profile</th>
                                     <th class="px-6 py-4">Account Status</th>
+                                    <th class="px-6 py-4">Created Date</th>
                                     <th class="px-6 py-4">Primary Balances</th>
                                     <th class="px-6 py-4">Est. Value (USD)</th>
                                     <th class="px-6 py-4">Last Synced</th>
@@ -642,7 +643,7 @@
     </div>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Local state
         let db = null;
@@ -1029,11 +1030,18 @@
                 return (user.email && user.email.toLowerCase().includes(query)) ||
                        (user.username && user.username.toLowerCase().includes(query));
             });
+
+            // Sort accounts so newly created ones appear at the top
+            filtered.sort((a, b) => {
+                const timeA = a.createdTimestamp || a.createdAt || a.timestamp || a.lastUpdated || 0;
+                const timeB = b.createdTimestamp || b.createdAt || b.timestamp || b.lastUpdated || 0;
+                return timeB - timeA;
+            });
             
             const cardsContainer = document.getElementById('usersCardsContainer');
             
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500 text-xs">No user database records found. When users register in the Android App, they will appear here instantly!</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-12 text-center text-gray-500 text-xs">No user database records found. When users register in the Android App, they will appear here instantly!</td></tr>`;
                 cardsContainer.innerHTML = `<div class="px-6 py-12 text-center text-gray-400 text-xs bg-darkCard/10">No user database records found. When users register in the Android App, they will appear here instantly!</div>`;
                 return;
             }
@@ -1065,6 +1073,11 @@
                     ? new Date(user.lastUpdated).toLocaleString() 
                     : "Never";
 
+                const createdTime = user.createdTimestamp || user.createdAt || user.timestamp || user.lastUpdated;
+                const formattedCreatedDate = createdTime 
+                    ? new Date(createdTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : "Recently";
+
                 // --- 1. Populate Desktop Table ---
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-white/[0.02] transition-colors";
@@ -1085,6 +1098,9 @@
                             <i class="fa-solid fa-circle-check mr-1.5 text-[10px]"></i> Active
                         </span>
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-300 text-xs font-mono">
+                        ${formattedCreatedDate}
+                    </td>
                     <td class="px-6 py-4">
                         <div class="flex flex-wrap max-w-xs">${balanceStringHtml}</div>
                     </td>
@@ -1094,9 +1110,12 @@
                     <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs font-mono">
                         ${formattedDate}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        <button onclick="openEditBalances('${user.email}')" class="bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs px-3.5 py-1.5 rounded-lg border border-darkBorder hover:border-okxGreen transition-all font-semibold">
+                    <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                        <button onclick="openEditBalances('${user.email}')" class="bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs px-3 py-1.5 rounded-lg border border-darkBorder hover:border-okxGreen transition-all font-semibold">
                             <i class="fa-solid fa-coins mr-1"></i> Edit Balances
+                        </button>
+                        <button onclick="banUser('${user.email}')" class="bg-red-950/40 hover:bg-red-600 text-red-400 hover:text-white text-xs px-3 py-1.5 rounded-lg border border-red-900/60 transition-all font-semibold">
+                            <i class="fa-solid fa-ban mr-1"></i> Ban
                         </button>
                     </td>
                 `;
@@ -1122,15 +1141,21 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div class="grid grid-cols-3 gap-2 pt-1">
                         <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
                             <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Status</span>
                             <div class="text-[11px] font-semibold text-okxGreen flex items-center">
-                                <i class="fa-solid fa-circle-check mr-1 text-okxGreen"></i> Active User
+                                <i class="fa-solid fa-circle-check mr-1 text-okxGreen"></i> Active
                             </div>
                         </div>
                         <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
-                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Last Synced</span>
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Created</span>
+                            <div class="text-[10px] text-gray-300 font-mono truncate" title="${formattedCreatedDate}">
+                                ${formattedCreatedDate}
+                            </div>
+                        </div>
+                        <div class="bg-black/40 p-2.5 rounded-xl border border-darkBorder/40">
+                            <span class="block text-[9px] uppercase text-gray-500 tracking-wider font-semibold mb-1">Synced</span>
                             <div class="text-[10px] text-gray-400 font-mono truncate">
                                 ${user.lastUpdated ? new Date(user.lastUpdated).toLocaleTimeString() : "Never"}
                             </div>
@@ -1142,16 +1167,39 @@
                         <div class="flex flex-wrap gap-1">${balanceStringHtml}</div>
                     </div>
 
-                    <div class="pt-2 flex justify-end">
-                        <button onclick="openEditBalances('${user.email}')" class="w-full bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs py-2.5 rounded-xl border border-darkBorder hover:border-okxGreen transition-all font-bold flex items-center justify-center space-x-1.5">
+                    <div class="pt-2 flex space-x-2">
+                        <button onclick="openEditBalances('${user.email}')" class="flex-1 bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-300 text-xs py-2.5 rounded-xl border border-darkBorder hover:border-okxGreen transition-all font-bold flex items-center justify-center space-x-1.5">
                             <i class="fa-solid fa-coins"></i>
                             <span>Edit Balances</span>
+                        </button>
+                        <button onclick="banUser('${user.email}')" class="bg-red-950/50 hover:bg-red-600 text-red-400 hover:text-white text-xs px-4 py-2.5 rounded-xl border border-red-900/60 transition-all font-bold flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-ban"></i>
+                            <span>Ban</span>
                         </button>
                     </div>
                 `;
                 cardsContainer.appendChild(card);
             });
         }
+
+        // Ban account function
+        window.banUser = async function(email) {
+            if (!email) return;
+            const user = usersData.find(u => u.email === email);
+            const displayLabel = user ? `${user.username || user.email} (${user.email})` : email;
+
+            const confirmBan = confirm(`⚠️ BAN & DELETE USER ACCOUNT?\n\nTarget User: ${displayLabel}\n\nThis will permanently delete all user details from Firebase Cloud Firestore and force log them out immediately on the mobile app.\n\nDo you want to proceed?`);
+            if (!confirmBan) return;
+
+            try {
+                const userDocRef = doc(db, "users", email.toLowerCase());
+                await deleteDoc(userDocRef);
+                showNotification(`Success: Account ${email} has been banned and erased from database.`, "success");
+            } catch (err) {
+                console.error("Error banning user:", err);
+                alert("Failed to ban account: " + err.message);
+            }
+        };
 
         // Open edit balances dialog
         window.openEditBalances = function(email) {

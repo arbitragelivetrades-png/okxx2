@@ -420,34 +420,57 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun setupCloudSync(context: Context, user: User) {
         if (FirebaseSyncManager.isConfigured(context)) {
             val prefs = context.getSharedPreferences("okx_sync_prefs", Context.MODE_PRIVATE)
-            FirebaseSyncManager.startRealtimeSync(context, user.email) { updatedBalances, lastUpdated ->
-                viewModelScope.launch(Dispatchers.IO) {
-                    val lastLocalUpdate = prefs.getLong("last_local_update_time", 0L)
-                    if (lastUpdated >= lastLocalUpdate) {
-                        var balanceIncreased = false
-                        val currentMap = coinBalances.value
-                        if (isInitialSyncDone && currentMap.isNotEmpty()) {
-                            updatedBalances.forEach { (symbol, amount) ->
-                                val oldAmount = currentMap[symbol] ?: 0.0
-                                if (amount > oldAmount) {
-                                    balanceIncreased = true
-                                    android.util.Log.d("WalletViewModel", "Deposit detected for $symbol: $oldAmount -> $amount")
+            FirebaseSyncManager.startRealtimeSync(
+                context = context,
+                userEmail = user.email,
+                onBalanceUpdated = { updatedBalances, lastUpdated ->
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val lastLocalUpdate = prefs.getLong("last_local_update_time", 0L)
+                        if (lastUpdated >= lastLocalUpdate) {
+                            var balanceIncreased = false
+                            val currentMap = coinBalances.value
+                            if (isInitialSyncDone && currentMap.isNotEmpty()) {
+                                updatedBalances.forEach { (symbol, amount) ->
+                                    val oldAmount = currentMap[symbol] ?: 0.0
+                                    if (amount > oldAmount) {
+                                        balanceIncreased = true
+                                        android.util.Log.d("WalletViewModel", "Deposit detected for $symbol: $oldAmount -> $amount")
+                                    }
                                 }
                             }
-                        }
 
-                        updatedBalances.forEach { (symbol, amount) ->
-                            repository.setBalance(symbol, amount)
-                        }
+                            updatedBalances.forEach { (symbol, amount) ->
+                                repository.setBalance(symbol, amount)
+                            }
 
-                        if (balanceIncreased) {
-                            triggerDepositReceived()
+                            if (balanceIncreased) {
+                                triggerDepositReceived()
+                            }
+                            isInitialSyncDone = true
+                        } else {
+                            android.util.Log.d("WalletViewModel", "Ignoring outdated cloud sync update. Cloud: $lastUpdated, Local: $lastLocalUpdate")
                         }
-                        isInitialSyncDone = true
-                    } else {
-                        android.util.Log.d("WalletViewModel", "Ignoring outdated cloud sync update. Cloud: $lastUpdated, Local: $lastLocalUpdate")
                     }
+                },
+                onUserBanned = {
+                    handleUserBanned()
                 }
+            )
+        }
+    }
+
+    fun handleUserBanned() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val user = _currentUser.value
+            if (user != null) {
+                database.userDao().deleteUser(user)
+            }
+            stopCloudSync()
+            val prefs = getApplication<Application>().getSharedPreferences("okx_settings", Context.MODE_PRIVATE)
+            prefs.edit().remove("logged_in_user_email").apply()
+            launch(Dispatchers.Main) {
+                _currentUser.value = null
+                android.widget.Toast.makeText(getApplication(), "Your account has been deleted or banned by admin.", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
