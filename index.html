@@ -68,11 +68,12 @@
                                 <span class="sm:hidden">Unlink</span>
                             </button>
                         </div>
-                        <button id="adminProfileBtn" class="hidden text-[10px] sm:text-xs text-gray-300 hover:text-white border border-darkBorder hover:border-okxGreen hover:bg-darkBorder px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center space-x-1.5 font-semibold">
-                            <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-okxGreen/20 border border-okxGreen text-okxGreen flex items-center justify-center text-[9px] sm:text-[10px]">
+                        <button id="adminProfileBtn" class="hidden text-xs text-gray-200 hover:text-white border border-darkBorder hover:border-okxGreen hover:bg-darkCard/80 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-2 font-semibold shadow-sm">
+                            <div class="w-6 h-6 rounded-full bg-okxGreen/20 border border-okxGreen text-okxGreen flex items-center justify-center text-xs">
                                 <i class="fa-solid fa-user-shield"></i>
                             </div>
-                            <span class="hidden sm:inline" id="headerAdminUsername">alpha02</span>
+                            <span id="headerAdminUsername" class="text-xs font-semibold">alpha02</span>
+                            <i class="fa-solid fa-gear text-[10px] text-gray-400"></i>
                         </button>
                         <button id="adminLogoutBtn" class="hidden text-[10px] sm:text-xs text-gray-400 hover:text-white border border-darkBorder hover:bg-darkBorder px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center space-x-1">
                             <i class="fa-solid fa-right-from-bracket"></i>
@@ -208,6 +209,10 @@
                                 </span>
                                 <input type="text" id="userSearchInput" placeholder="Search by email, name..." class="bg-black border border-darkBorder rounded-lg pl-9 pr-4 py-2 text-white focus:outline-none focus:border-okxGreen text-xs w-60 transition-all">
                             </div>
+                            <button id="dashboardAdminProfileBtn" class="bg-darkBorder hover:bg-okxGreen hover:text-black text-gray-200 text-xs px-3 py-2 rounded-lg border border-darkBorder hover:border-okxGreen transition-all font-semibold flex items-center space-x-1.5 shadow-sm">
+                                <i class="fa-solid fa-user-gear text-okxGreen"></i>
+                                <span class="hidden sm:inline">Admin Settings</span>
+                            </button>
                         </div>
                     </div>
 
@@ -218,7 +223,12 @@
                                 <tr>
                                     <th class="px-6 py-4">User Profile</th>
                                     <th class="px-6 py-4">Account Status</th>
-                                    <th class="px-6 py-4">Created Date</th>
+                                    <th class="px-6 py-4">
+                                        <div class="flex items-center space-x-1.5 text-okxGreen">
+                                            <i class="fa-regular fa-calendar"></i>
+                                            <span class="text-gray-300">Created Date</span>
+                                        </div>
+                                    </th>
                                     <th class="px-6 py-4">Primary Balances</th>
                                     <th class="px-6 py-4">Est. Value (USD)</th>
                                     <th class="px-6 py-4">Last Synced</th>
@@ -773,28 +783,45 @@
         const cancelDisconnectBtn = document.getElementById('cancelDisconnectBtn');
         const confirmDisconnectBtn = document.getElementById('confirmDisconnectBtn');
 
-        // Admin credential helpers
-        function getAdminCredentials() {
-            const saved = localStorage.getItem('okx_admin_creds');
-            if (saved) {
-                try {
-                    return JSON.parse(saved);
-                } catch (e) {}
-            }
-            return { username: 'alpha02', password: 'Thecorrupt1.ke' };
-        }
+        // Admin credentials state (Stored in Firebase Firestore database)
+        let adminCredentials = { username: 'alpha02', password: 'Thecorrupt1.ke' };
+        let unsubscribeAdminCreds = null;
 
-        function setAdminCredentials(username, password) {
-            localStorage.setItem('okx_admin_creds', JSON.stringify({ username, password }));
+        function listenToAdminCredentials() {
+            if (!db) return;
+            const adminRef = doc(db, "admin_settings", "credentials");
+            unsubscribeAdminCreds = onSnapshot(adminRef, async (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    if (data.username && data.password) {
+                        adminCredentials = { username: data.username, password: data.password };
+                    }
+                } else {
+                    try {
+                        await setDoc(adminRef, {
+                            username: "alpha02",
+                            password: "Thecorrupt1.ke",
+                            updatedAt: Date.now()
+                        });
+                    } catch (e) {
+                        console.error("Error setting default admin credentials in Firestore:", e);
+                    }
+                }
+                const headerAdminUsername = document.getElementById('headerAdminUsername');
+                if (headerAdminUsername) {
+                    headerAdminUsername.innerText = adminCredentials.username;
+                }
+            }, (err) => {
+                console.error("Firestore error reading admin credentials:", err);
+            });
         }
 
         // Authentication logic
         function checkAuth() {
             const isAuth = sessionStorage.getItem('admin_authenticated') === 'true';
-            const creds = getAdminCredentials();
             const headerAdminUsername = document.getElementById('headerAdminUsername');
             if (headerAdminUsername) {
-                headerAdminUsername.innerText = creds.username;
+                headerAdminUsername.innerText = adminCredentials.username;
             }
 
             if (isAuth) {
@@ -849,8 +876,7 @@
             const password = document.getElementById('loginPassword').value.trim();
             const loginError = document.getElementById('loginError');
             
-            const creds = getAdminCredentials();
-            if (username === creds.username && password === creds.password) {
+            if (username === adminCredentials.username && password === adminCredentials.password) {
                 sessionStorage.setItem('admin_authenticated', 'true');
                 loginError.classList.add('hidden');
                 checkAuth();
@@ -862,18 +888,21 @@
         // Admin profile modal logic
         const adminProfileModal = document.getElementById('adminProfileModal');
         const adminProfileBtn = document.getElementById('adminProfileBtn');
+        const dashboardAdminProfileBtn = document.getElementById('dashboardAdminProfileBtn');
         const closeAdminProfileModalBtn = document.getElementById('closeAdminProfileModalBtn');
         const cancelAdminProfileBtn = document.getElementById('cancelAdminProfileBtn');
         const toggleAdminPassVisibility = document.getElementById('toggleAdminPassVisibility');
 
-        adminProfileBtn?.addEventListener('click', () => {
-            const creds = getAdminCredentials();
-            document.getElementById('profileAdminUsername').value = creds.username;
-            document.getElementById('profileAdminPassword').value = creds.password;
-            document.getElementById('profileAdminPasswordConfirm').value = creds.password;
+        const openAdminProfileModal = () => {
+            document.getElementById('profileAdminUsername').value = adminCredentials.username;
+            document.getElementById('profileAdminPassword').value = adminCredentials.password;
+            document.getElementById('profileAdminPasswordConfirm').value = adminCredentials.password;
             document.getElementById('adminProfileError').classList.add('hidden');
             adminProfileModal.classList.remove('hidden');
-        });
+        };
+
+        adminProfileBtn?.addEventListener('click', openAdminProfileModal);
+        dashboardAdminProfileBtn?.addEventListener('click', openAdminProfileModal);
 
         const closeAdminProfileModal = () => {
             adminProfileModal.classList.add('hidden');
@@ -893,7 +922,7 @@
             }
         });
 
-        document.getElementById('adminProfileForm')?.addEventListener('submit', (e) => {
+        document.getElementById('adminProfileForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newUsername = document.getElementById('profileAdminUsername').value.trim();
             const newPassword = document.getElementById('profileAdminPassword').value.trim();
@@ -917,11 +946,30 @@
                 return;
             }
 
-            setAdminCredentials(newUsername, newPassword);
-            errorContainer.classList.add('hidden');
-            closeAdminProfileModal();
-            checkAuth();
-            showNotification("Admin credentials updated successfully!", "success");
+            if (!db) {
+                errorText.innerText = "Database is not connected. Please connect database first.";
+                errorContainer.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const adminRef = doc(db, "admin_settings", "credentials");
+                await setDoc(adminRef, {
+                    username: newUsername,
+                    password: newPassword,
+                    updatedAt: Date.now()
+                }, { merge: true });
+
+                adminCredentials = { username: newUsername, password: newPassword };
+                errorContainer.classList.add('hidden');
+                closeAdminProfileModal();
+                checkAuth();
+                showNotification("Admin credentials updated and saved securely to Firebase Cloud Firestore database!", "success");
+            } catch (err) {
+                console.error("Error updating admin credentials:", err);
+                errorText.innerText = "Database error: " + err.message;
+                errorContainer.classList.remove('hidden');
+            }
         });
 
         // Admin logout action
@@ -1167,6 +1215,7 @@
                 checkAuth();
                 
                 // Start subscribing to Firebase changes
+                listenToAdminCredentials();
                 listenToUsers();
                 listenToUpdateConfig();
                 return true;
@@ -1222,11 +1271,16 @@
                        (user.username && user.username.toLowerCase().includes(query));
             });
 
-            // Sort accounts so newly created ones appear at the top
+            // Sort accounts so newly created ones strictly appear at the top
             filtered.sort((a, b) => {
-                const timeA = a.createdTimestamp || a.createdAt || a.timestamp || a.lastUpdated || 0;
-                const timeB = b.createdTimestamp || b.createdAt || b.timestamp || b.lastUpdated || 0;
-                return timeB - timeA;
+                const timeA = a.createdTimestamp || a.createdAt || a.timestamp || 0;
+                const timeB = b.createdTimestamp || b.createdAt || b.timestamp || 0;
+                if (timeA !== timeB) {
+                    return timeB - timeA; // Newest creation timestamp on top
+                }
+                const lastA = a.lastUpdated || 0;
+                const lastB = b.lastUpdated || 0;
+                return lastB - lastA;
             });
             
             const cardsContainer = document.getElementById('usersCardsContainer');
