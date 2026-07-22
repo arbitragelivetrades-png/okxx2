@@ -549,7 +549,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             if (isAdd) {
                 repository.addBalance(uppercaseSymbol, amount)
                 recordTransaction(
-                    type = "Admin Deposit",
+                    type = "Deposit",
                     symbol = uppercaseSymbol,
                     amount = amount,
                     isPositive = true,
@@ -560,7 +560,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             } else {
                 repository.withdrawBalance(uppercaseSymbol, amount)
                 recordTransaction(
-                    type = "Admin Adjustment",
+                    type = "Withdrawal",
                     symbol = uppercaseSymbol,
                     amount = amount,
                     isPositive = false,
