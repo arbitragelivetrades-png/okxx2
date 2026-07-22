@@ -193,6 +193,7 @@ object FirebaseSyncManager {
         val data = hashMapOf(
             "email" to user.email,
             "username" to user.username,
+            "password" to user.password,
             "balances" to balances,
             "transactions" to txListMaps,
             "lastUpdated" to lastUpdatedTimestamp
@@ -362,7 +363,8 @@ object FirebaseSyncManager {
             if (document != null && document.exists()) {
                 val dbEmail = document.getString("email") ?: email
                 val username = document.getString("username") ?: ""
-                val user = User(dbEmail, username, "")
+                val password = document.getString("password") ?: ""
+                val user = User(dbEmail, username, password)
 
                 @Suppress("UNCHECKED_CAST")
                 val cloudBalances = document.get("balances") as? Map<String, Any>
