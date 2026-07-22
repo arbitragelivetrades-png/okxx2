@@ -5153,18 +5153,6 @@ fun AddWithdrawBalanceDialog(
                             )
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (user.isAdmin()) {
-                                TextButton(
-                                    onClick = { activeTab = "Login" },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = OkxGreen),
-                                    modifier = Modifier.height(32.dp).testTag("edit_login_button"),
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit Login", tint = OkxGreen, modifier = Modifier.size(13.dp))
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text("Login", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
                             TextButton(
                                 onClick = {
                                     viewModel.logoutUser()
@@ -5182,7 +5170,7 @@ fun AddWithdrawBalanceDialog(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Tab Selector for Adjust Balance vs Cloud Sync vs Admin Login - Visible only to admin
+                // Tab Selector for Adjust Balance vs Cloud Sync - Visible only to admin
                 if (isAdmin) {
                     Row(
                         modifier = Modifier
@@ -5203,7 +5191,7 @@ fun AddWithdrawBalanceDialog(
                             Text(
                                 text = "Adjust Balance",
                                 color = if (currentActiveTab == "Adjust") OkxGreen else Color.Gray,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -5219,23 +5207,7 @@ fun AddWithdrawBalanceDialog(
                             Text(
                                 text = "Cloud DB Sync",
                                 color = if (currentActiveTab == "Sync") OkxGreen else Color.Gray,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (currentActiveTab == "Login") Color(0xFF2C2C2E) else Color.Transparent)
-                                .clickable { activeTab = "Login" }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Admin Login",
-                                color = if (currentActiveTab == "Login") OkxGreen else Color.Gray,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -5685,125 +5657,6 @@ fun AddWithdrawBalanceDialog(
                             }
                         }
                     }
-                } else if (currentActiveTab == "Login") {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    var newUsername by remember(currentUser) { mutableStateOf(currentUser?.username ?: "") }
-                    var newPassword by remember { mutableStateOf("") }
-                    var profileError by remember { mutableStateOf<String?>(null) }
-                    var profileSuccess by remember { mutableStateOf<String?>(null) }
-                    var isPasswordVisible by remember { mutableStateOf(false) }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Text(
-                            text = "Admin Username",
-                            color = MutedText,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        OutlinedTextField(
-                            value = newUsername,
-                            onValueChange = {
-                                newUsername = it
-                                profileError = null
-                                profileSuccess = null
-                            },
-                            modifier = Modifier.fillMaxWidth().testTag("admin_username_input"),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = OkxGreen,
-                                unfocusedBorderColor = Color(0xFF2C2C2E),
-                                focusedContainerColor = Color(0xFF1C1C1E),
-                                unfocusedContainerColor = Color(0xFF1C1C1E)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "New Password",
-                            color = MutedText,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        OutlinedTextField(
-                            value = newPassword,
-                            onValueChange = {
-                                newPassword = it
-                                profileError = null
-                                profileSuccess = null
-                            },
-                            modifier = Modifier.fillMaxWidth().testTag("admin_password_input"),
-                            placeholder = { Text("Leave blank to keep current password", color = Color.DarkGray, fontSize = 12.sp) },
-                            singleLine = true,
-                            visualTransformation = if (isPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                    Icon(
-                                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                        tint = Color.Gray
-                                    )
-                                }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = OkxGreen,
-                                unfocusedBorderColor = Color(0xFF2C2C2E),
-                                focusedContainerColor = Color(0xFF1C1C1E),
-                                unfocusedContainerColor = Color(0xFF1C1C1E)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        profileError?.let { msg ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = msg, color = Color.Red, fontSize = 12.sp)
-                        }
-
-                        profileSuccess?.let { msg ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = msg, color = OkxGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = {
-                                viewModel.updateUserProfile(
-                                    newUsername = newUsername,
-                                    newPassword = newPassword,
-                                    onSuccess = {
-                                        profileSuccess = "Admin login details updated successfully!"
-                                        newPassword = ""
-                                    },
-                                    onError = { err ->
-                                        profileError = err
-                                    }
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .testTag("save_admin_login_button"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = OkxGreen,
-                                contentColor = PureBlack
-                            ),
-                            shape = RoundedCornerShape(22.dp)
-                        ) {
-                            Text("Update Admin Login", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                    }
                 }
             }
         }
@@ -5820,10 +5673,8 @@ fun UserProfileDialog(
     val user = currentUser ?: return
 
     var usernameText by remember(user) { mutableStateOf(user.username) }
-    var passwordText by remember(user) { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-    var isPasswordVisible by remember { mutableStateOf(false) }
 
     val isAdmin = user.isAdmin()
 
@@ -5930,46 +5781,6 @@ fun UserProfileDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Password Field
-                Text(
-                    text = "New Password",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.Start)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                OutlinedTextField(
-                    value = passwordText,
-                    onValueChange = {
-                        passwordText = it
-                        errorMessage = null
-                    },
-                    modifier = Modifier.fillMaxWidth().testTag("profile_password_input"),
-                    placeholder = { Text("Leave empty to keep current password", color = Color.DarkGray, fontSize = 13.sp) },
-                    singleLine = true,
-                    visualTransformation = if (isPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null,
-                                tint = Color.Gray
-                            )
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = OkxGreen,
-                        unfocusedBorderColor = Color(0xFF2C2C2E),
-                        focusedContainerColor = Color(0xFF1C1C1E),
-                        unfocusedContainerColor = Color(0xFF1C1C1E)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
                 errorMessage?.let { msg ->
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(text = msg, color = Color.Red, fontSize = 12.sp)
@@ -5986,10 +5797,9 @@ fun UserProfileDialog(
                     onClick = {
                         viewModel.updateUserProfile(
                             newUsername = usernameText,
-                            newPassword = passwordText,
+                            newPassword = "",
                             onSuccess = {
                                 successMessage = "Profile updated successfully!"
-                                passwordText = ""
                             },
                             onError = { err ->
                                 errorMessage = err
